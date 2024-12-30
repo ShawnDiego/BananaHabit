@@ -18,11 +18,13 @@ final class Item {
 final class Mood {
     var date: Date
     var value: Int // 1-5 表示心情值
-    var item: Item? // 改为直接引用 Item
+    var note: String // 添加备注字段
+    var item: Item?
     
-    init(date: Date, value: Int, item: Item) {
+    init(date: Date, value: Int, note: String = "", item: Item) {
         self.date = date
         self.value = value
+        self.note = note
         self.item = item
     }
 } 
