@@ -1,32 +1,27 @@
-//
-//  BananaHabitApp.swift
-//  BananaHabit
-//
-//  Created by 邵文萱(ShaoWenxuan)-顺丰科技技术集团 on 2024/12/30.
-//
-
 import SwiftUI
 import SwiftData
 
 @main
 struct BananaHabitApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
+    let container: ModelContainer
+    
+    init() {
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            let schema = Schema([
+                Item.self,
+                Mood.self
+            ])
+            let modelConfiguration = ModelConfiguration("BananaHabit", schema: schema)
+            container = try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            fatalError("无法创建 ModelContainer: \(error)")
         }
-    }()
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(container)
     }
-}
+} 
