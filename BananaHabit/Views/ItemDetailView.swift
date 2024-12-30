@@ -108,7 +108,7 @@ struct WeekCalendarView: View {
                 Button(action: nextWeek) {
                     Image(systemName: "chevron.right")
                 }
-                .disabled(isCurrentWeek())
+                .disabled(isNextWeekDisabled())
             }
             .padding(.horizontal)
         }
@@ -163,9 +163,16 @@ struct WeekCalendarView: View {
     
     private func nextWeek() {
         if let newDate = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: currentWeek),
-           !isCurrentWeek() {
+           !isNextWeekDisabled() {
             currentWeek = newDate
         }
+    }
+    
+    private func isNextWeekDisabled() -> Bool {
+        let calendar = Calendar.current
+        let nextWeek = calendar.date(byAdding: .weekOfYear, value: 1, to: currentWeek)!
+        let startOfNextWeek = calendar.startOfDay(for: nextWeek)
+        return startOfNextWeek > calendar.startOfDay(for: Date())
     }
 }
 

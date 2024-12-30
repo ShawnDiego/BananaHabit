@@ -7,12 +7,8 @@ struct BananaHabitApp: App {
     
     init() {
         do {
-            let schema = Schema([
-                Item.self,
-                Mood.self
-            ])
-            let modelConfiguration = ModelConfiguration("BananaHabit", schema: schema)
-            container = try ModelContainer(for: schema, configurations: [modelConfiguration])
+            let modelConfiguration = ModelConfiguration(isStoredInMemoryOnly: false)
+            container = try ModelContainer(for: Item.self, Mood.self, configurations: modelConfiguration)
         } catch {
             fatalError("无法创建 ModelContainer: \(error)")
         }
