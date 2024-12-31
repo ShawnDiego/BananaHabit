@@ -201,7 +201,7 @@ struct QuickMoodRow: View {
                     }
                 }
                 .navigationTitle("心情备注")
-                .navigationBarTitleDisplayMode(.inline)
+//                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("取消") {
