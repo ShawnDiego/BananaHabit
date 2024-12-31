@@ -5,12 +5,13 @@ struct ItemListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
     @State private var showingAddItem = false
+    @State private var selectedItem: Item?
     
     var body: some View {
-        NavigationView {
-            List {
+        NavigationSplitView {
+            List(selection: $selectedItem) {
                 ForEach(items) { item in
-                    NavigationLink(destination: ItemDetailView(item: item)) {
+                    NavigationLink(value: item) {
                         Text(item.name)
                     }
                 }
@@ -24,6 +25,24 @@ struct ItemListView: View {
             }
             .sheet(isPresented: $showingAddItem) {
                 AddItemView()
+            }
+            .frame(minWidth: 200, maxWidth: 250)
+        } detail: {
+            if let item = selectedItem ?? items.first {
+                ItemDetailView(item: item)
+            } else {
+                Text("请选择一个事项")
+                    .foregroundColor(.gray)
+            }
+        }
+        .onAppear {
+            if selectedItem == nil && !items.isEmpty {
+                selectedItem = items.first
+            }
+        }
+        .onChange(of: items) { oldValue, newValue in
+            if selectedItem == nil && !newValue.isEmpty {
+                selectedItem = newValue.first
             }
         }
     }

@@ -3,20 +3,26 @@ import SwiftData
 
 struct MoodInputView: View {
     @Bindable var item: Item
-    let date: Date  // 添加日期参数
-    @State private var selectedValue = 3
+    let date: Date
+    let onSave: () -> Void
+    
+    @State private var selectedValue = 0
     @State private var note = ""
     @State private var showAlert = false
+    @State private var hasSelectedMood = false
     @Environment(\.modelContext) private var modelContext
     private let calendar = Calendar.current
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // 心情选择器
-            HStack(spacing: 15) {
+            // MARK: - 心情选择器
+            HStack(spacing: 25) {
+                Spacer()
                 ForEach(1...5, id: \.self) { value in
                     Button {
                         selectedValue = value
+                        hasSelectedMood = true
+                        saveMood(note: "")  // 只保存心情值
                     } label: {
                         VStack(spacing: 4) {
                             Image(systemName: selectedValue == value ? "circle.fill" : "circle")
@@ -28,22 +34,27 @@ struct MoodInputView: View {
                         }
                     }
                 }
+                Spacer()
             }
             .padding(.vertical, 8)
             
-            // 备注输入框
-            TextField("添加备注（可选）", text: $note, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(3)
-            
-            // 提交按钮
-            Button(action: submitMood) {
-                Text("保存")
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+            // MARK: - 备注输入区
+            if hasSelectedMood {
+                TextField("添加备注（可选）", text: $note, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(3)
+                    .onSubmit {
+                        submitWithNote()
+                    }
+                
+                Button(action: submitWithNote) {
+                    Text("完成")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
             }
         }
         .alert("提示", isPresented: $showAlert) {
@@ -53,26 +64,24 @@ struct MoodInputView: View {
         }
     }
     
-    private func submitMood() {
-        // 检查是否已经存在当天的记录
+    // MARK: - 辅助方法
+    private func saveMood(note: String) {
         let startOfDay = calendar.startOfDay(for: date)
         if let existingMood = item.moods.first(where: { calendar.isDate($0.date, inSameDayAs: startOfDay) }) {
-            // 更新现有记录
             existingMood.value = selectedValue
             existingMood.note = note
             existingMood.date = date
         } else {
-            // 创建新记录
             let mood = Mood(date: date, value: selectedValue, note: note, item: item)
             item.moods.append(mood)
         }
-        
-        // 保存更改
         try? modelContext.save()
-        
-        // 显示提示并重置输入
+    }
+    
+    private func submitWithNote() {
+        saveMood(note: note)
         showAlert = true
-        note = ""
+        onSave()
     }
     
     private func moodColor(_ value: Int) -> Color {

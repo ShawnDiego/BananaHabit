@@ -21,6 +21,9 @@ struct MoodStatsView: View {
     @Bindable var item: Item
     @State private var selectedScale: TimeScale = .week
     @State private var selectedMood: Mood?
+    @State private var isDragging = false
+    @State private var currentDateOffset = 0  // 添加日期偏移量状态
+    @GestureState private var dragOffset: CGFloat = 0
     private let calendar = Calendar.current
     
     // 心情分数对应的颜色
@@ -43,29 +46,48 @@ struct MoodStatsView: View {
                     .font(.headline)
                     .padding(.horizontal)
                 
-                Picker("时间范围", selection: $selectedScale) {
-                    ForEach(TimeScale.allCases, id: \.self) { scale in
-                        Text(scale.rawValue).tag(scale)
+                HStack {
+                    Button(action: { changeOffset(-1) }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(.blue)
                     }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-                
-                // 选中的数据点信息
-                if let selectedMood = selectedMood {
-                    HStack {
-                        Text(selectedMood.date.formatted(.dateTime.year().month().day()))
-                        Text("心情: \(selectedMood.value)分")
-                            .foregroundColor(moodColor(selectedMood.value))
-                        let note = selectedMood.note
-                        if !note.isEmpty {
-                            Text("备注: \(note)")
+                    
+                    Picker("时间范围", selection: $selectedScale) {
+                        ForEach(TimeScale.allCases, id: \.self) { scale in
+                            Text(scale.rawValue).tag(scale)
                         }
                     }
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal)
+                    .pickerStyle(.segmented)
+                    .onChange(of: selectedScale) { _, _ in
+                        currentDateOffset = 0  // 切换时间范围时重置偏移量
+                    }
+                    
+                    Button(action: { changeOffset(1) }) {
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.blue)
+                    }
+                    .disabled(currentDateOffset >= 0)  // 禁止向未来滑动
                 }
+                .padding(.horizontal)
+                
+                // 固定高度的容器来显示选中信息
+                ZStack(alignment: .leading) {
+                    if isDragging, let selectedMood = selectedMood {
+                        HStack {
+                            Text(selectedMood.date.formatted(.dateTime.year().month().day()))
+                            Text("心情: \(selectedMood.value)分")
+                                .foregroundColor(moodColor(selectedMood.value))
+                            if !selectedMood.note.isEmpty {
+                                Text("备注: \(selectedMood.note)")
+                            }
+                        }
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .transition(.opacity)
+                    }
+                }
+                .frame(height: 20) // 固定高度
+                .padding(.horizontal)
                 
                 // 心情趋势图表
                 Chart {
@@ -78,47 +100,57 @@ struct MoodStatsView: View {
                         .symbolSize(60)
                         .symbol(.circle)
                     }
-                }
-                .frame(height: 200)
-                .chartXAxis {
-                    AxisMarks { value in
-                        AxisGridLine()
-                        if let date = value.as(Date.self) {
-                            AxisValueLabel {
-                                switch selectedScale {
-                                case .week:
-                                    Text(date.formatted(.dateTime.day()))
-                                case .month:
-                                    Text(date.formatted(.dateTime.day()))
-                                case .halfYear:
-                                    Text(date.formatted(.dateTime.month()))
-                                case .year:
-                                    Text(date.formatted(.dateTime.month()))
-                                }
-                            }
-                        }
+                    
+                    if isDragging, let selectedMood = selectedMood {
+                        RuleMark(
+                            x: .value("选中日期", selectedMood.date)
+                        )
+                        .foregroundStyle(.gray.opacity(0.3))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [5]))
+                        
+                        RuleMark(
+                            y: .value("选中心情", selectedMood.value)
+                        )
+                        .foregroundStyle(.gray.opacity(0.3))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [5]))
                     }
                 }
-                .chartYAxis {
-                    AxisMarks(values: [1, 2, 3, 4, 5])
-                }
-                .chartYScale(domain: 0.5...5.5)
+                .frame(height: 200)
+                .chartXScale(domain: chartDateRange)
+                .chartYScale(domain: 0...5)
                 .chartOverlay { proxy in
                     GeometryReader { geometry in
-                        Rectangle().fill(.clear).contentShape(Rectangle())
-                            .gesture(
-                                DragGesture()
-                                    .onChanged { value in
-                                        let x = value.location.x - geometry[proxy.plotAreaFrame].origin.x
-                                        guard let date = proxy.value(atX: x) as Date? else { return }
-                                        
-                                        selectedMood = filteredMoods
-                                            .min(by: { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) })
+                        Rectangle()
+                            .fill(.clear)
+                            .contentShape(Rectangle())
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    isDragging = true
+                                    let xPosition = value.location.x
+                                    if let date = proxy.value(atX: xPosition, as: Date.self) {
+                                        withAnimation(.interactiveSpring()) {
+                                            selectedMood = findClosestMood(to: date)
+                                        }
                                     }
-                                    .onEnded { _ in
+                                }
+                                .onEnded { value in
+                                    // 判断是否为滑动切换
+                                    let threshold: CGFloat = 50
+                                    if abs(value.translation.width) > threshold {
+                                        if value.translation.width > 0 {
+                                            changeOffset(-1)
+                                        } else {
+                                            changeOffset(1)
+                                        }
+                                    }
+                                    
+                                    withAnimation(.easeOut(duration: 0.2)) {
+                                        isDragging = false
                                         selectedMood = nil
                                     }
-                            )
+                                }
+                        )
                     }
                 }
             }
@@ -131,8 +163,12 @@ struct MoodStatsView: View {
             
             // 心情分布统计容器
             VStack(spacing: 12) {
-                Text("心情分布")
-                    .font(.headline)
+                HStack{
+                    Text("心情分布")
+                        .font(.headline)
+                    Spacer()
+                }
+                
                 
                 HStack(spacing: 15) {
                     ForEach(1...5, id: \.self) { value in
@@ -166,27 +202,58 @@ struct MoodStatsView: View {
         .padding()
     }
     
-    private var filteredMoods: [Mood] {
-        let endDate = Date()
-        var startDate: Date
+    private func changeOffset(_ delta: Int) {
+        // 防止向未来滑动
+        if delta > 0 && currentDateOffset >= 0 {
+            return
+        }
+        withAnimation {
+            currentDateOffset += delta
+        }
+    }
+    
+    private var chartDateRange: ClosedRange<Date> {
+        let endDate: Date
+        let startDate: Date
         
         switch selectedScale {
         case .week:
-            startDate = calendar.date(byAdding: .day, value: -7, to: endDate)!
+            endDate = calendar.date(byAdding: .day, value: 7 * currentDateOffset, to: Date())!
+            startDate = calendar.date(byAdding: .day, value: -6, to: endDate)!
         case .month:
-            startDate = calendar.date(byAdding: .month, value: -1, to: endDate)!
+            endDate = calendar.date(byAdding: .month, value: currentDateOffset, to: Date())!
+            startDate = calendar.date(byAdding: .day, value: -29, to: endDate)!
         case .halfYear:
+            endDate = calendar.date(byAdding: .month, value: 6 * currentDateOffset, to: Date())!
             startDate = calendar.date(byAdding: .month, value: -6, to: endDate)!
         case .year:
-            startDate = calendar.date(byAdding: .year, value: -1, to: endDate)!
+            endDate = calendar.date(byAdding: .year, value: currentDateOffset, to: Date())!
+            startDate = calendar.date(byAdding: .month, value: -12, to: endDate)!
         }
         
+        return startDate...min(endDate, Date())  // 确保不超过当前日期
+    }
+    
+    private var filteredMoods: [Mood] {
+        let range = chartDateRange
         return item.moods
-            .filter { $0.date >= startDate && $0.date <= endDate }
+            .filter { $0.date >= range.lowerBound && $0.date <= range.upperBound }
             .sorted { $0.date < $1.date }
     }
     
     private func moodCount(_ value: Int) -> Int {
         filteredMoods.filter { $0.value == value }.count
+    }
+    
+    // 添加查找最近心情记录的方法
+    private func findClosestMood(to date: Date) -> Mood? {
+        let filteredMoods = self.filteredMoods
+        guard !filteredMoods.isEmpty else { return nil }
+        
+        return filteredMoods.min { mood1, mood2 in
+            let interval1 = abs(mood1.date.timeIntervalSince(date))
+            let interval2 = abs(mood2.date.timeIntervalSince(date))
+            return interval1 < interval2
+        }
     }
 } 

@@ -4,6 +4,7 @@ import SwiftData
 struct TodayMoodView: View {
     @Bindable var item: Item
     private let calendar = Calendar.current
+    @State private var shouldRefresh = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -14,7 +15,14 @@ struct TodayMoodView: View {
             if let todayMood = getTodayMood() {
                 MoodDisplayView(mood: todayMood)
             } else {
-                MoodInputView(item: item, date: Date())
+                MoodInputView(item: item, date: Date(), onSave: {
+                    shouldRefresh = true
+                })
+            }
+        }
+        .onChange(of: shouldRefresh) { oldValue, newValue in
+            if newValue {
+                shouldRefresh = false
             }
         }
     }

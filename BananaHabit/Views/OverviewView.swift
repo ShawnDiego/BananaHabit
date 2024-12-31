@@ -8,47 +8,58 @@ struct OverviewView: View {
     @State private var showingAddItem = false
     
     var body: some View {
+        #if os(iOS)
         NavigationView {
-            List {
-                Section("今日心情速记") {
-                    if items.isEmpty {
-                        Text("还没有添加任何事项")
-                            .foregroundColor(.gray)
-                    } else {
-                        ForEach(items) { item in
-                            QuickMoodRow(item: item)
-                                .id(item.id)
-                        }
+            mainContent
+        }
+        .navigationViewStyle(.stack)
+        #else
+        NavigationStack {
+            mainContent
+        }
+        #endif
+    }
+    
+    private var mainContent: some View {
+        List {
+            Section("今日心情速记") {
+                if items.isEmpty {
+                    Text("还没有添加任何事项")
+                        .foregroundColor(.gray)
+                } else {
+                    ForEach(items) { item in
+                        QuickMoodRow(item: item)
+                            .id(item.id)
                     }
+                }
+            }
+            
+            if !items.isEmpty {
+                Section("本周心情趋势") {
+                    WeekMoodChart(items: items)
+                        .frame(height: 200)
                 }
                 
-                if !items.isEmpty {
-                    Section("本周心情趋势") {
-                        WeekMoodChart(items: items)
-                            .frame(height: 200)
+                Section("统计概览") {
+                    HStack {
+                        Text("本周平均心情")
+                        Spacer()
+                        Text(String(format: "%.1f", weeklyAverageMood()))
+                            .foregroundColor(.blue)
                     }
                     
-                    Section("统计概览") {
-                        HStack {
-                            Text("本周平均心情")
-                            Spacer()
-                            Text(String(format: "%.1f", weeklyAverageMood()))
-                                .foregroundColor(.blue)
-                        }
-                        
-                        HStack {
-                            Text("记录天数")
-                            Spacer()
-                            Text("\(consecutiveRecordDays())天")
-                                .foregroundColor(.blue)
-                        }
+                    HStack {
+                        Text("记录天数")
+                        Spacer()
+                        Text("\(consecutiveRecordDays())天")
+                            .foregroundColor(.blue)
                     }
                 }
             }
-            .navigationTitle("概览")
-            .sheet(isPresented: $showingAddItem) {
-                AddItemView()
-            }
+        }
+        .navigationTitle("概览")
+        .sheet(isPresented: $showingAddItem) {
+            AddItemView()
         }
     }
     

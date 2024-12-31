@@ -5,13 +5,10 @@ struct CalendarView: View {
     @Bindable var item: Item
     @State private var isExpanded = false
     @State private var currentMonth: Date
-    @State private var isDragging = false
-    @GestureState private var dragOffset: CGSize = .zero
     
     private let calendar = Calendar.current
     private let weekDaySymbols = Calendar.current.veryShortWeekdaySymbols
     private let cellWidth: CGFloat = 40
-    private let dragThreshold: CGFloat = 50
     
     init(selectedDate: Binding<Date>, item: Item) {
         self._selectedDate = selectedDate
@@ -34,6 +31,15 @@ struct CalendarView: View {
                 } else {
                     Text(selectedDate.formatted(.dateTime.year().month(.wide)))
                         .font(.title3.bold())
+                }
+                Button {
+                    withAnimation(.spring(response: 0.3)) {
+                        isExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle")
+                        .font(.system(size: 20))
+                        .foregroundColor(.blue)
                 }
                 Spacer()
                 
@@ -60,46 +66,6 @@ struct CalendarView: View {
             }
         }
         .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(10)
-        .offset(dragOffset)
-        .animation(.interactiveSpring(), value: dragOffset)
-        .gesture(
-            DragGesture()
-                .updating($dragOffset) { value, state, _ in
-                    state = value.translation
-                    isDragging = true
-                }
-                .onEnded { value in
-                    isDragging = false
-                    
-                    let horizontalMovement = value.translation.width
-                    let verticalMovement = value.translation.height
-                    
-                    // 判断主要的拖动方向
-                    if abs(horizontalMovement) > abs(verticalMovement) {
-                        // 水平滑动
-                        if abs(horizontalMovement) > dragThreshold {
-                            if horizontalMovement > 0 {
-                                handlePreviousPeriod()
-                            } else {
-                                handleNextPeriod()
-                            }
-                        }
-                    } else {
-                        // 垂直滑动
-                        if abs(verticalMovement) > dragThreshold {
-                            withAnimation(.spring(response: 0.3)) {
-                                if verticalMovement > 0 {
-                                    isExpanded = false
-                                } else {
-                                    isExpanded = true
-                                }
-                            }
-                        }
-                    }
-                }
-        )
     }
     
     @ViewBuilder
