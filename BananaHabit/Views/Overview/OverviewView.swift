@@ -6,13 +6,67 @@ struct OverviewView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
     @State private var showingAddItem = false
+    @StateObject private var userVM = UserViewModel()
+    @State private var showingUserProfile = false
     
     var body: some View {
         #if os(iOS)
         NavigationView {
             mainContent
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            showingUserProfile = true
+                        } label: {
+                            HStack(spacing: 8) {
+                                if userVM.isAuthenticated, let user = userVM.currentUser {
+                                    Text("\(userVM.getGreeting())，\(user.name)")
+                                        .font(.subheadline)
+                                    
+                                    if let avatarUrl = user.avatarUrl {
+                                        AsyncImage(url: URL(fileURLWithPath: avatarUrl)) { image in
+                                            image
+                                                .resizable()
+                                                .scaledToFill()
+                                        } placeholder: {
+                                            Image(systemName: "person.circle.fill")
+                                                .foregroundColor(.gray)
+                                        }
+                                        .frame(width: 40, height: 40)
+                                        .clipShape(Circle())
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                        )
+                                    } else {
+                                        Image(systemName: "person.circle.fill")
+                                            .font(.system(size: 40))
+                                            .foregroundColor(.gray)
+                                            .frame(width: 40, height: 40)
+                                    }
+                                } else {
+                                    Text("未登录")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    Image(systemName: "person.circle")
+                                        .font(.title3)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
         }
         .navigationViewStyle(.stack)
+        .sheet(isPresented: $showingUserProfile) {
+            if !userVM.isAuthenticated {
+                SignInView()
+                    .environmentObject(userVM)
+            } else {
+                UserProfileView()
+                    .environmentObject(userVM)
+            }
+        }
         #else
         NavigationStack {
             mainContent

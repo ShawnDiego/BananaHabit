@@ -1,0 +1,65 @@
+/* 通用 */
+"Done" = "完成";
+"Cancel" = "取消";
+"Save" = "保存";
+"Delete" = "删除";
+"Edit" = "编辑";
+"Close" = "关闭";
+"Confirm" = "确认";
+"Alert" = "提示";
+
+/* 登录页面 */
+"Get Started" = "开始使用";
+"Sign in to sync your mood data" = "登录后即可记录和同步您的心情数据";
+"Skip" = "暂不登录";
+
+/* 个人资料页面 */
+"Profile" = "个人资料";
+"Change Avatar" = "更改头像";
+"Choose from Library" = "从相册选择";
+"Remove Avatar" = "删除头像";
+"Edit Name" = "修改名字";
+"Your Name" = "你的名字";
+"Sign Out" = "退出登录";
+"Delete Account" = "注销账户";
+"Delete Account Warning" = "注销账户后，所有数据将被永久删除且无法恢复";
+"Not Signed In" = "未登录";
+
+/* 概览页面 */
+"Overview" = "概览";
+"Good Morning" = "早上好";
+"Good Afternoon" = "下午好";
+"Good Evening" = "晚上好";
+"Good Night" = "夜深了";
+
+/* 心情记录 */
+"Today's Mood" = "今日心情";
+"Mood Rating" = "心情评分";
+"Note" = "备注";
+"Add Note (Optional)" = "添加备注（可选）";
+"Edit Mood" = "编辑心情";
+"Delete Record" = "删除记录";
+"Delete Mood Confirmation" = "确定要删除这条心情记录吗？";
+"Mood Recorded" = "心情已记录";
+
+/* 日历 */
+"January" = "一月";
+"February" = "二月";
+"March" = "三月";
+"April" = "四月";
+"May" = "五月";
+"June" = "六月";
+"July" = "七月";
+"August" = "八月";
+"September" = "九月";
+"October" = "十月";
+"November" = "十一月";
+"December" = "十二月";
+
+"Sun" = "日";
+"Mon" = "一";
+"Tue" = "二";
+"Wed" = "三";
+"Thu" = "四";
+"Fri" = "五";
+"Sat" = "六"; 

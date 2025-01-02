@@ -1,0 +1,66 @@
+
+/* General */
+"Done" = "Done";
+"Cancel" = "Cancel";
+"Save" = "Save";
+"Delete" = "Delete";
+"Edit" = "Edit";
+"Close" = "Close";
+"Confirm" = "Confirm";
+"Alert" = "Alert";
+
+/* Sign In */
+"Get Started" = "Get Started";
+"Sign in to sync your mood data" = "Sign in to sync your mood data";
+"Skip" = "Skip";
+
+/* Profile */
+"Profile" = "Profile";
+"Change Avatar" = "Change Avatar";
+"Choose from Library" = "Choose from Library";
+"Remove Avatar" = "Remove Avatar";
+"Edit Name" = "Edit Name";
+"Your Name" = "Your Name";
+"Sign Out" = "Sign Out";
+"Delete Account" = "Delete Account";
+"Delete Account Warning" = "After deleting your account, all data will be permanently deleted and cannot be recovered";
+"Not Signed In" = "Not Signed In";
+
+/* Overview */
+"Overview" = "Overview";
+"Good Morning" = "Good Morning";
+"Good Afternoon" = "Good Afternoon";
+"Good Evening" = "Good Evening";
+"Good Night" = "Good Night";
+
+/* Mood */
+"Today's Mood" = "Today's Mood";
+"Mood Rating" = "Mood Rating";
+"Note" = "Note";
+"Add Note (Optional)" = "Add Note (Optional)";
+"Edit Mood" = "Edit Mood";
+"Delete Record" = "Delete Record";
+"Delete Mood Confirmation" = "Are you sure you want to delete this mood record?";
+"Mood Recorded" = "Mood Recorded";
+
+/* Calendar */
+"January" = "January";
+"February" = "February";
+"March" = "March";
+"April" = "April";
+"May" = "May";
+"June" = "June";
+"July" = "July";
+"August" = "August";
+"September" = "September";
+"October" = "October";
+"November" = "November";
+"December" = "December";
+
+"Sun" = "Sun";
+"Mon" = "Mon";
+"Tue" = "Tue";
+"Wed" = "Wed";
+"Thu" = "Thu";
+"Fri" = "Fri";
+"Sat" = "Sat";
