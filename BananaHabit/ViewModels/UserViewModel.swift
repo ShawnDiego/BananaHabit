@@ -19,13 +19,18 @@ class UserViewModel: ObservableObject {
         }
     }
     
-    private func saveUserState() {
-        if let user = currentUser,
-           let userData = try? JSONEncoder().encode(user) {
-            userDefaults.set(userData, forKey: "currentUser")
-        } else {
-            userDefaults.removeObject(forKey: "currentUser")
-        }
+    func saveUserState() {
+        guard let user = currentUser else { return }
+        
+        let userData: [String: Any] = [
+            "id": user.id,
+            "name": user.name,
+            "email": user.email ?? "",
+            "avatarUrl": user.avatarUrl ?? ""
+        ]
+        
+        userDefaults.set(userData, forKey: "CurrentUser")
+        userDefaults.set(true, forKey: "IsAuthenticated")
     }
     
     func getGreeting() -> String {
