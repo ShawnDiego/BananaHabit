@@ -157,7 +157,7 @@ struct MoodStatsView: View {
             .padding(.vertical)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white)
+                    .fill(AppColors.cardBackground)
                     .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
             )
             
@@ -195,7 +195,7 @@ struct MoodStatsView: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white)
+                    .fill(AppColors.cardBackground)
                     .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
             )
         }

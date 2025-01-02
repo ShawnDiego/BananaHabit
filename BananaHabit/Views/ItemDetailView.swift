@@ -38,12 +38,10 @@ struct ItemDetailView: View {
                 .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.white)
+                        .fill(AppColors.cardBackground)
                         .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
                 )
                 .padding(.horizontal)
-                
-
                 
                 // 心情统计
                 MoodStatsView(item: item)
