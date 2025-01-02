@@ -4,7 +4,6 @@ import AuthenticationServices
 class UserViewModel: ObservableObject {
     @Published var currentUser: User?
     @Published var isAuthenticated = false
-    private let userDefaults = UserDefaults.standard
     private let fileManager = FileManager.default
     
     init() {
@@ -12,16 +11,30 @@ class UserViewModel: ObservableObject {
     }
     
     private func loadUserState() {
-        if let userData = userDefaults.data(forKey: "currentUser"),
-           let user = try? JSONDecoder().decode(User.self, from: userData) {
-            self.currentUser = user
-            self.isAuthenticated = true
+        let userDefaults = UserDefaults.standard
+        // 首先检查认证状态
+        isAuthenticated = userDefaults.bool(forKey: "IsAuthenticated")
+        
+        // 如果已认证，加载用户数据
+        if isAuthenticated,
+           let userData = userDefaults.dictionary(forKey: "CurrentUser"),
+           let id = userData["id"] as? String,
+           let name = userData["name"] as? String {
+            
+            var user = User(id: id, name: name)
+            user.email = userData["email"] as? String
+            user.avatarUrl = userData["avatarUrl"] as? String
+            
+            DispatchQueue.main.async {
+                self.currentUser = user
+            }
         }
     }
     
     func saveUserState() {
         guard let user = currentUser else { return }
         
+        let userDefaults = UserDefaults.standard
         let userData: [String: Any] = [
             "id": user.id,
             "name": user.name,
@@ -31,6 +44,15 @@ class UserViewModel: ObservableObject {
         
         userDefaults.set(userData, forKey: "CurrentUser")
         userDefaults.set(true, forKey: "IsAuthenticated")
+        userDefaults.synchronize()
+    }
+    
+    func signOut() {
+        currentUser = nil
+        isAuthenticated = false
+        UserDefaults.standard.removeObject(forKey: "CurrentUser")
+        UserDefaults.standard.set(false, forKey: "IsAuthenticated")
+        UserDefaults.standard.synchronize()
     }
     
     func getGreeting() -> String {

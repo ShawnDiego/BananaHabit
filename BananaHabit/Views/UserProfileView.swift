@@ -8,6 +8,7 @@ struct UserProfileView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var userVM: UserViewModel
     @StateObject private var cloudManager = CloudManager.shared
+    @StateObject private var exportManager = DataExportManager.shared
     
     @State private var showingDeleteAlert = false
     @State private var showingImagePicker = false
@@ -16,6 +17,9 @@ struct UserProfileView: View {
     @State private var editingName = ""
     @State private var showingNotificationSettings = false
     @State private var showingRestoreAlert = false
+    @State private var showingDocumentPicker = false
+    @State private var showingShareSheet = false
+    @State private var exportURL: URL?
     
     var body: some View {
         NavigationView {
@@ -142,6 +146,28 @@ struct UserProfileView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                
+                Section("数据管理") {
+                    Button {
+                        exportData()
+                    } label: {
+                        HStack {
+                            Text("导出数据")
+                            Spacer()
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                    }
+                    
+                    Button {
+                        showingDocumentPicker = true
+                    } label: {
+                        HStack {
+                            Text("导入数据")
+                            Spacer()
+                            Image(systemName: "square.and.arrow.down")
+                        }
+                    }
+                }
             }
             .navigationTitle("个人资料")
             .navigationBarTitleDisplayMode(.inline)
@@ -235,6 +261,31 @@ struct UserProfileView: View {
             } message: {
                 Text("从iCloud恢复数据将覆盖当前数据，确定要继续吗？")
             }
+            .alert("导入失败", isPresented: .init(
+                get: { exportManager.importError != nil },
+                set: { if !$0 { exportManager.importError = nil } }
+            )) {
+                Button("确定", role: .cancel) { }
+            } message: {
+                if let error = exportManager.importError {
+                    Text(error)
+                }
+            }
+            .alert("导入成功", isPresented: $exportManager.showSuccessAlert) {
+                Button("确定", role: .cancel) { }
+            } message: {
+                Text("数据已成功导入")
+            }
+            .sheet(isPresented: $showingDocumentPicker) {
+                DocumentPicker(types: [.json]) { url in
+                    exportManager.importData(url, into: modelContext)
+                }
+            }
+            .sheet(isPresented: $showingShareSheet) {
+                if let url = exportURL {
+                    ShareSheet(items: [url])
+                }
+            }
         }
     }
     
@@ -305,6 +356,19 @@ struct UserProfileView: View {
             }
         }
     }
+    
+    private func exportData() {
+        do {
+            let descriptor = FetchDescriptor<Item>()
+            let items = try modelContext.fetch(descriptor)
+            if let url = exportManager.exportData(items) {
+                exportURL = url
+                showingShareSheet = true
+            }
+        } catch {
+            exportManager.importError = error.localizedDescription
+        }
+    }
 }
 
 // 图片选择器
@@ -352,4 +416,96 @@ struct ImagePicker: UIViewControllerRepresentable {
             }
         }
     }
+}
+
+// 文档选择器
+struct DocumentPicker: UIViewControllerRepresentable {
+    let types: [UTType]
+    let onPick: (URL) -> Void
+    
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: types)
+        picker.delegate = context.coordinator
+        picker.shouldShowFileExtensions = true
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onPick: onPick)
+    }
+    
+    class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let onPick: (URL) -> Void
+        
+        init(onPick: @escaping (URL) -> Void) {
+            self.onPick = onPick
+        }
+        
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            guard let url = urls.first else { return }
+            
+            // 开始访问安全作用域资源
+            guard url.startAccessingSecurityScopedResource() else {
+                print("无法访问文件：权限被拒绝")
+                return
+            }
+            
+            // 确保在完成时释放安全作用域资源
+            defer { url.stopAccessingSecurityScopedResource() }
+            
+            // 使用文件协调器读取文件内容
+            var error: NSError?
+            let coordinator = NSFileCoordinator()
+            var fileData: Data?
+            
+            coordinator.coordinate(readingItemAt: url, options: [], error: &error) { coordinatedURL in
+                do {
+                    fileData = try Data(contentsOf: coordinatedURL)
+                } catch {
+                    print("读取文件失败: \(error)")
+                }
+            }
+            
+            if let error = error {
+                print("文件协调失败: \(error)")
+                return
+            }
+            
+            // 如果成功读取文件，创建临时文件
+            if let data = fileData {
+                do {
+                    let tempDir = FileManager.default.temporaryDirectory
+                    let tempUrl = tempDir.appendingPathComponent(url.lastPathComponent)
+                    
+                    // 如果临时文件已存在，先删除
+                    if FileManager.default.fileExists(atPath: tempUrl.relativePath) {
+                        try FileManager.default.removeItem(at: tempUrl)
+                    }
+                    
+                    // 写入临时文件
+                    try data.write(to: tempUrl)
+                    
+                    // 使用临时文件
+                    DispatchQueue.main.async {
+                        self.onPick(tempUrl)
+                    }
+                } catch {
+                    print("创建临时文件失败: \(error)")
+                }
+            }
+        }
+    }
+}
+
+// 分享表单
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 } 

@@ -4,6 +4,7 @@ import SwiftData
 @main
 struct BananaHabitApp: App {
     let container: ModelContainer
+    @StateObject private var userViewModel = UserViewModel()
     
     init() {
         do {
@@ -40,7 +41,8 @@ struct BananaHabitApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(userViewModel)
+                .modelContainer(container)
         }
-        .modelContainer(container)
     }
 } 

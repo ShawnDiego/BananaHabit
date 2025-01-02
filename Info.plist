@@ -1,0 +1,6 @@
+<key>LSSupportsOpeningDocumentsInPlace</key>
+<true/>
+<key>UIFileSharingEnabled</key>
+<true/>
+<key>NSDocumentsFolderUsageDescription</key>
+<string>需要访问文件以导入/导出您的数据</string> 

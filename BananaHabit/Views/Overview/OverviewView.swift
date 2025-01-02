@@ -6,7 +6,7 @@ struct OverviewView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
     @State private var showingAddItem = false
-    @StateObject private var userVM = UserViewModel()
+    @EnvironmentObject private var userVM: UserViewModel
     @State private var showingUserProfile = false
     
     var body: some View {
