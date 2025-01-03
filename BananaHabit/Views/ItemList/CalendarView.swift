@@ -199,7 +199,7 @@ struct DayCell: View {
     private let calendar = Calendar.current
     
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 4) {
             Text("\(calendar.component(.day, from: date))")
                 .font(.system(size: 16))
                 .frame(width: 32, height: 32)
@@ -207,13 +207,13 @@ struct DayCell: View {
                 .clipShape(Circle())
                 .foregroundColor(dateColor)
             
-            if let _ = getMood(), !isFutureDate {
-                Image(systemName: "star.fill")
-                    .foregroundColor(.yellow)
-                    .font(.system(size: 8))
+            if let mood = getMood(), !isFutureDate {
+                Circle()
+                    .fill(moodColor(mood.value))
+                    .frame(width: 6, height: 6)
             } else {
                 Color.clear
-                    .frame(height: 8)
+                    .frame(height: 6)
             }
         }
     }
@@ -235,5 +235,16 @@ struct DayCell: View {
     
     private func getMood() -> Mood? {
         item.moods.first { calendar.isDate($0.date, inSameDayAs: date) }
+    }
+    
+    private func moodColor(_ value: Int) -> Color {
+        switch value {
+        case 1: return .red.opacity(0.8)
+        case 2: return .orange.opacity(0.8)
+        case 3: return .yellow.opacity(0.8)
+        case 4: return .mint.opacity(0.8)
+        case 5: return .blue.opacity(0.8)
+        default: return .gray
+        }
     }
 }

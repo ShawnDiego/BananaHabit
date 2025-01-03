@@ -89,7 +89,7 @@ struct OverviewView: View {
             }
             
             if !items.isEmpty {
-                Section("本周心情趋势") {
+                Section("最近七天心情趋势") {
                     WeekMoodChart(items: items)
                         .frame(height: 200)
                 }
@@ -107,6 +107,50 @@ struct OverviewView: View {
                         Spacer()
                         Text("\(consecutiveRecordDays())天")
                             .foregroundColor(.blue)
+                    }
+                    
+                    HStack(spacing: 12) {
+                        // 最差心情
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("最差")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            if let worst = getWorstMood() {
+                                HStack(spacing: 4) {
+                                    Circle()
+                                        .fill(moodColor(worst.value))
+                                        .frame(width: 8, height: 8)
+                                    Text("\(formatDate(worst.date)) (\(daysAgo(from: worst.date))天前)")
+                                        .font(.subheadline)
+                                }
+                            } else {
+                                Text("暂无")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        // 最好心情
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("最好")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            if let best = getBestMood() {
+                                HStack(spacing: 4) {
+                                    Circle()
+                                        .fill(moodColor(best.value))
+                                        .frame(width: 8, height: 8)
+                                    Text("\(formatDate(best.date)) (\(daysAgo(from: best.date))天前)")
+                                        .font(.subheadline)
+                                }
+                            } else {
+                                Text("暂无")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
                 }
             }
@@ -162,6 +206,43 @@ struct OverviewView: View {
         
         return consecutiveDays
     }
+    
+    // 添加新的辅助方法
+    private func getWorstMood() -> Mood? {
+        let allMoods = items.flatMap { $0.moods }
+        return allMoods.min { $0.value < $1.value }
+    }
+    
+    private func getBestMood() -> Mood? {
+        let allMoods = items.flatMap { $0.moods }
+        return allMoods.max { $0.value < $1.value }
+    }
+    
+    private func daysAgo(from date: Date) -> Int {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let moodDate = calendar.startOfDay(for: date)
+        let components = calendar.dateComponents([.day], from: moodDate, to: today)
+        return components.day ?? 0
+    }
+    
+    private func moodColor(_ value: Int) -> Color {
+        switch value {
+        case 1: return .red.opacity(0.8)
+        case 2: return .orange.opacity(0.8)
+        case 3: return .yellow.opacity(0.8)
+        case 4: return .mint.opacity(0.8)
+        case 5: return .blue.opacity(0.8)
+        default: return .gray.opacity(0.8)
+        }
+    }
+    
+    // 添加日期格式化函数
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M/d"
+        return formatter.string(from: date)
+    }
 }
 
 // 周心情图表组件
@@ -170,18 +251,25 @@ struct WeekMoodChart: View {
     
     var body: some View {
         Chart {
-            ForEach(weekData(), id: \.date) { data in
+            ForEach(weekData().filter { $0.value > 0 }, id: \.date) { data in
                 LineMark(
                     x: .value("日期", data.date, unit: .day),
                     y: .value("心情", data.value)
                 )
-                .symbol(Circle())
+                .foregroundStyle(moodColor(data.value))
+                .symbol {
+                    Circle()
+                        .fill(moodColor(data.value))
+                        .frame(width: 10, height: 10)
+                }
                 
                 AreaMark(
                     x: .value("日期", data.date, unit: .day),
                     y: .value("心情", data.value)
                 )
-                .foregroundStyle(Gradient(colors: [.blue.opacity(0.3), .clear]))
+                .foregroundStyle(
+                    Gradient(colors: [moodColor(data.value).opacity(0.2), .clear])
+                )
             }
         }
         .chartYScale(domain: 0...5)
@@ -194,13 +282,14 @@ struct WeekMoodChart: View {
         }
     }
     
-    // 获取周数据
+    // 获取最近一周数据
     private func weekData() -> [(date: Date, value: Double)] {
         let calendar = Calendar.current
-        let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date()))!
+        let today = calendar.startOfDay(for: Date())
         
         return (0..<7).compactMap { day in
-            let date = calendar.date(byAdding: .day, value: day, to: startOfWeek)!
+            // 从今天开始往前推算7天
+            let date = calendar.date(byAdding: .day, value: -(6-day), to: today)!
             var totalValue = 0
             var count = 0
             
@@ -213,6 +302,18 @@ struct WeekMoodChart: View {
             
             let averageValue = count > 0 ? Double(totalValue) / Double(count) : 0
             return (date: date, value: averageValue)
+        }
+    }
+    
+    // 添加心情颜色函数
+    private func moodColor(_ value: Double) -> Color {
+        switch Int(round(value)) {
+        case 1: return .red.opacity(0.8)
+        case 2: return .orange.opacity(0.8)
+        case 3: return .yellow.opacity(0.8)
+        case 4: return .mint.opacity(0.8)
+        case 5: return .blue.opacity(0.8)
+        default: return .gray.opacity(0.8)
         }
     }
 }
@@ -236,10 +337,10 @@ struct QuickMoodRow: View {
                 Text(item.name)
                 Spacer()
                 ForEach(1...5, id: \.self) { value in
-                    Image(systemName: value <= currentValue ? "star.fill" : "star")
-                        .foregroundColor(.yellow)
+                    Image(systemName: value <= currentValue ? "circle.fill" : "circle")
+                        .foregroundStyle(moodColor(value))
                         .onTapGesture {
-                            withAnimation {
+                            withAnimation(.spring(response: 0.3)) {
                                 currentValue = value
                                 updateMood(value: value)
                             }
@@ -304,6 +405,18 @@ struct QuickMoodRow: View {
         } else {
             let newMood = Mood(date: today, value: value, note: note, item: item)
             item.moods.append(newMood)
+        }
+    }
+    
+    // 添加心情颜色函数
+    private func moodColor(_ value: Int) -> Color {
+        switch value {
+        case 1: return .red.opacity(0.8)
+        case 2: return .orange.opacity(0.8)
+        case 3: return .yellow.opacity(0.8)
+        case 4: return .mint.opacity(0.8)
+        case 5: return .blue.opacity(0.8)
+        default: return .gray
         }
     }
 }

@@ -10,9 +10,11 @@ struct MoodDisplayView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
+                Spacer()
+                
                 ForEach(1...5, id: \.self) { value in
-                    Image(systemName: value <= mood.value ? "star.fill" : "star")
-                        .foregroundColor(.yellow)
+                    Image(systemName: value <= mood.value ? "circle.fill" : "circle")
+                        .foregroundColor(moodColor(value))
                 }
                 
                 Spacer()
@@ -57,6 +59,17 @@ struct MoodDisplayView: View {
         modelContext.delete(mood)
         try? modelContext.save()
     }
+    
+    private func moodColor(_ value: Int) -> Color {
+        switch value {
+        case 1: return .red.opacity(0.8)
+        case 2: return .orange.opacity(0.8)
+        case 3: return .yellow.opacity(0.8)
+        case 4: return .mint.opacity(0.8)
+        case 5: return .blue.opacity(0.8)
+        default: return .gray
+        }
+    }
 }
 
 // 添加编辑视图
@@ -76,33 +89,55 @@ struct MoodEditView: View {
     
     var body: some View {
         NavigationView {
-            Form {
-                Section("心情评分") {
-                    HStack(spacing: 15) {
-                        ForEach(1...5, id: \.self) { value in
-                            Button {
-                                selectedValue = value
-                            } label: {
-                                VStack(spacing: 4) {
-                                    Image(systemName: selectedValue == value ? "circle.fill" : "circle")
-                                        .foregroundColor(moodColor(value))
-                                        .font(.system(size: 24))
-                                    Text("\(value)分")
-                                        .font(.caption)
-                                        .foregroundColor(selectedValue == value ? moodColor(value) : .gray)
+            List {
+                Section {
+                    VStack(alignment: .center, spacing: 20) {
+                        Text("今天心情如何？")
+                            .font(.title3)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                        
+                        HStack(spacing: 20) {
+                            ForEach(1...5, id: \.self) { value in
+                                Button {
+                                    withAnimation(.spring(response: 0.3)) {
+                                        selectedValue = value
+                                    }
+                                } label: {
+                                    VStack(spacing: 8) {
+                                        Image(systemName: value == selectedValue ? "circle.fill" : "circle")
+                                            .font(.system(size: 32))
+                                            .foregroundStyle(moodColor(value))
+                                            .symbolEffect(.bounce, value: selectedValue == value)
+                                        
+                                        Text(moodText(value))
+                                            .font(.caption)
+                                            .foregroundStyle(value == selectedValue ? moodColor(value) : .gray)
+                                    }
+                                    .frame(width: 50)
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
+                        .padding(.vertical, 10)
                     }
-                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
                 }
                 
-                Section("备注") {
+                Section {
                     TextField("添加备注（可选）", text: $note, axis: .vertical)
-                        .lineLimit(3)
+                        .lineLimit(3...6)
+                        .padding(.vertical, 8)
+                } header: {
+                    Text("备注")
+                } footer: {
+                    Text("记录一下此刻的想法...")
+                        .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("编辑心情")
+            .navigationTitle("记录心情")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -127,13 +162,24 @@ struct MoodEditView: View {
         try? modelContext.save()
     }
     
+    private func moodText(_ value: Int) -> String {
+        switch value {
+        case 1: return "很差"
+        case 2: return "较差"
+        case 3: return "一般"
+        case 4: return "不错"
+        case 5: return "很好"
+        default: return ""
+        }
+    }
+    
     private func moodColor(_ value: Int) -> Color {
         switch value {
-        case 1: return .red
-        case 2: return .orange
-        case 3: return .yellow
-        case 4: return .green
-        case 5: return .blue
+        case 1: return .red.opacity(0.8)
+        case 2: return .orange.opacity(0.8)
+        case 3: return .yellow.opacity(0.8)
+        case 4: return .mint.opacity(0.8)
+        case 5: return .blue.opacity(0.8)
         default: return .gray
         }
     }
