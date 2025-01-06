@@ -209,13 +209,17 @@ struct OverviewView: View {
     
     // 添加新的辅助方法
     private func getWorstMood() -> Mood? {
-        let allMoods = items.flatMap { $0.moods }
-        return allMoods.min { $0.value < $1.value }
+        let calendar = Calendar.current
+        let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: Date())!
+        let recentMoods = items.flatMap { $0.moods }.filter { $0.date >= thirtyDaysAgo }
+        return recentMoods.min { $0.value < $1.value || ($0.value == $1.value && $0.date > $1.date) }
     }
     
     private func getBestMood() -> Mood? {
-        let allMoods = items.flatMap { $0.moods }
-        return allMoods.max { $0.value < $1.value }
+        let calendar = Calendar.current
+        let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: Date())!
+        let recentMoods = items.flatMap { $0.moods }.filter { $0.date >= thirtyDaysAgo }
+        return recentMoods.max { $0.value < $1.value || ($0.value == $1.value && $0.date < $1.date) }
     }
     
     private func daysAgo(from date: Date) -> Int {
