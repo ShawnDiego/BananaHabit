@@ -4,7 +4,7 @@ import Charts
 
 struct ItemListView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @Query(sort: \Item.sortOrder) private var items: [Item]
     @State private var showingAddItem = false
     @State private var selectedItem: Item?
     
@@ -19,11 +19,19 @@ struct ItemListView: View {
                             itemRow(item)
                         }
                         .onDelete(perform: deleteItems)
+                        .onMove { from, to in
+                            moveItems(from: from, to: to)
+                        }
                     }
                     .navigationTitle("所有事项")
                     .toolbar {
-                        Button(action: { showingAddItem = true }) {
-                            Label("添加事项", systemImage: "plus")
+                        ToolbarItem(placement: .topBarLeading) {
+                            EditButton()
+                        }
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button(action: { showingAddItem = true }) {
+                                Label("添加事项", systemImage: "plus")
+                            }
                         }
                     }
                 }
@@ -37,24 +45,26 @@ struct ItemListView: View {
                             itemRow(item)
                         }
                         .onDelete(perform: deleteItems)
+                        .onMove { from, to in
+                            moveItems(from: from, to: to)
+                        }
                     }
                     .navigationTitle("所有事项")
                     .toolbar {
-                        Button(action: { showingAddItem = true }) {
-                            Label("添加事项", systemImage: "plus")
+                        ToolbarItem(placement: .topBarLeading) {
+                            EditButton()
+                        }
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button(action: { showingAddItem = true }) {
+                                Label("添加事项", systemImage: "plus")
+                            }
                         }
                     }
                     .frame(minWidth: 200, maxWidth: 250)
                 } detail: {
                     if let item = selectedItem ?? items.first {
                         ItemDetailView(item: item)
-                    } else {
-                        Text("请选择一个事项")
-                            .foregroundColor(.gray)
                     }
-                }
-                .sheet(isPresented: $showingAddItem) {
-                    AddItemView()
                 }
             }
         }
@@ -96,6 +106,16 @@ struct ItemListView: View {
             .sorted { $0.date > $1.date }
             .prefix(10)
             .reversed())
+    }
+    
+    private func moveItems(from source: IndexSet, to destination: Int) {
+        // 更新所有受影响项目的sortOrder
+        var updatedItems = items
+        updatedItems.move(fromOffsets: source, toOffset: destination)
+        
+        for (index, item) in updatedItems.enumerated() {
+            item.sortOrder = index
+        }
     }
 }
 

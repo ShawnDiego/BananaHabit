@@ -5,11 +5,13 @@ import SwiftData
 final class Item {
     var name: String
     var createdDate: Date
+    var sortOrder: Int // 添加排序字段
     @Relationship(deleteRule: .cascade) var moods: [Mood]
     
     init(name: String, createdDate: Date = Date()) {
         self.name = name
         self.createdDate = createdDate
+        self.sortOrder = 0 // 默认排序值
         self.moods = []
     }
 }
