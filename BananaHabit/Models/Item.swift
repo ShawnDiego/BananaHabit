@@ -6,12 +6,14 @@ final class Item {
     var name: String
     var createdDate: Date
     var sortOrder: Int // 添加排序字段
+    var icon: String // 添加图标字段
     @Relationship(deleteRule: .cascade) var moods: [Mood]
     
-    init(name: String, createdDate: Date = Date()) {
+    init(name: String, createdDate: Date = Date(), icon: String = "star.fill") {
         self.name = name
         self.createdDate = createdDate
         self.sortOrder = 0 // 默认排序值
+        self.icon = icon
         self.moods = []
     }
 }

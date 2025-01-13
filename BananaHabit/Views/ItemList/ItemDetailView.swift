@@ -118,6 +118,15 @@ struct ItemDetailView: View {
         }
         .navigationTitle(item.name)
         .background(Color.gray.opacity(0.05))
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                NavigationLink {
+                    EditItemView(item: item)
+                } label: {
+                    Image(systemName: "pencil.circle")
+                }
+            }
+        }
         .onChange(of: currentDate) { oldValue, newValue in
             // 当切换日期时，如果不是最后保存的日期，重置状态
             if lastSavedDate == nil || !calendar.isDate(newValue, inSameDayAs: lastSavedDate!) {

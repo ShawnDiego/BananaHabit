@@ -8,56 +8,122 @@ struct OverviewView: View {
     @State private var showingAddItem = false
     @EnvironmentObject private var userVM: UserViewModel
     @State private var showingUserProfile = false
+    @State private var showingMoodInput = false
+    @State private var selectedItemId: PersistentIdentifier?
+    
+    var selectedItem: Item? {
+        if let selectedItemId = selectedItemId {
+            return items.first { $0.persistentModelID == selectedItemId }
+        }
+        return items.first
+    }
     
     var body: some View {
-        #if os(iOS)
         NavigationView {
-            mainContent
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button {
-                            showingUserProfile = true
-                        } label: {
-                            HStack(spacing: 8) {
-                                if userVM.isAuthenticated, let user = userVM.currentUser {
-                                    Text("\(userVM.getGreeting())，\(user.name)")
-                                        .font(.subheadline)
-                                    
-                                    if let avatarUrl = user.avatarUrl {
-                                        AsyncImage(url: URL(fileURLWithPath: avatarUrl)) { image in
-                                            image
-                                                .resizable()
-                                                .scaledToFill()
-                                        } placeholder: {
-                                            Image(systemName: "person.circle.fill")
-                                                .foregroundColor(.gray)
-                                        }
-                                        .frame(width: 40, height: 40)
-                                        .clipShape(Circle())
-                                        .overlay(
-                                            Circle()
-                                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                        )
-                                    } else {
-                                        Image(systemName: "person.circle.fill")
-                                            .font(.system(size: 40))
-                                            .foregroundColor(.gray)
-                                            .frame(width: 40, height: 40)
+            ScrollView {
+                VStack(spacing: 20) {
+                    // 用户信息头部
+                    userProfileHeader
+                    
+                    // 事项选择器
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(items) { item in
+                                Button {
+                                    withAnimation {
+                                        selectedItemId = item.persistentModelID
                                     }
-                                } else {
-                                    Text("未登录")
+                                } label: {
+                                    VStack(spacing: 6) {
+                                        ItemIconView(
+                                            icon: item.icon,
+                                            size: 24,
+                                            color: selectedItemId == item.persistentModelID ? .blue : .gray
+                                        )
+                                        Text(item.name)
+                                            .font(.subheadline)
+                                    }
+                                    .frame(width: 80, height: 80)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(selectedItemId == item.persistentModelID ? 
+                                                Color.blue.opacity(0.1) : 
+                                                Color(.systemBackground))
+                                            .shadow(color: .black.opacity(0.1), radius: 5)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            
+                            Button {
+                                showingAddItem = true
+                            } label: {
+                                VStack(spacing: 6) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 24))
+                                    Text("添加事项")
                                         .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                    Image(systemName: "person.circle")
-                                        .font(.title3)
-                                        .foregroundColor(.secondary)
+                                }
+                                .frame(width: 80, height: 80)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal)
+                    }
+                    
+                    if let item = selectedItem {
+                        // 今日心情卡片
+                        VStack {
+                            if hasTodayMood(item) {
+                                TodayMoodView(item: item)
+                                    .frame(height: 120)
+                            } else {
+                                Button {
+                                    showingMoodInput = true
+                                } label: {
+                                    VStack(spacing: 16) {
+                                        Image(systemName: "plus.circle.fill")
+                                            .font(.system(size: 40))
+                                            .foregroundColor(.blue)
+                                        
+                                        Text("记录今天的心情")
+                                            .font(.headline)
+                                        
+                                        Text("每日记录帮助你更好地了解自己")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 180)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .fill(Color(.systemBackground))
+                                            .shadow(color: .black.opacity(0.1), radius: 10)
+                                    )
                                 }
                             }
                         }
+                        .padding(.horizontal)
+                        
+                        VStack(spacing: 16) {
+                            // 心情趋势图表
+                            moodTrendCard(item: item)
+                            
+                            // 统计数据卡片
+                            statsOverviewCard(item: item)
+                        }
+                        .padding(.horizontal)
                     }
                 }
+                .padding(.vertical)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationBarHidden(true)
         }
-        .navigationViewStyle(.stack)
         .sheet(isPresented: $showingUserProfile) {
             if !userVM.isAuthenticated {
                 SignInView()
@@ -67,114 +133,152 @@ struct OverviewView: View {
                     .environmentObject(userVM)
             }
         }
-        #else
-        NavigationStack {
-            mainContent
-        }
-        #endif
-    }
-    
-    private var mainContent: some View {
-        List {
-            Section("今日心情速记") {
-                if items.isEmpty {
-                    Text("还没有添加任何事项")
-                        .foregroundColor(.gray)
-                } else {
-                    ForEach(items) { item in
-                        QuickMoodRow(item: item)
-                            .id(item.id)
-                    }
-                }
-            }
-            
-            if !items.isEmpty {
-                Section("最近七天心情趋势") {
-                    WeekMoodChart(items: items)
-                        .frame(height: 200)
-                }
-                
-                Section("统计概览") {
-                    HStack {
-                        Text("本周平均心情")
-                        Spacer()
-                        Text(String(format: "%.1f", weeklyAverageMood()))
-                            .foregroundColor(.blue)
-                    }
-                    
-                    HStack {
-                        Text("记录天数")
-                        Spacer()
-                        Text("\(consecutiveRecordDays())天")
-                            .foregroundColor(.blue)
-                    }
-                    
-                    HStack(spacing: 12) {
-                        // 最差心情
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("最差")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            if let worst = getWorstMood() {
-                                HStack(spacing: 4) {
-                                    Circle()
-                                        .fill(moodColor(worst.value))
-                                        .frame(width: 8, height: 8)
-                                    Text("\(formatDate(worst.date)) (\(daysAgo(from: worst.date))天前)")
-                                        .font(.subheadline)
-                                }
-                            } else {
-                                Text("暂无")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        // 最好心情
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Text("最好")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            if let best = getBestMood() {
-                                HStack(spacing: 4) {
-                                    Circle()
-                                        .fill(moodColor(best.value))
-                                        .frame(width: 8, height: 8)
-                                    Text("\(formatDate(best.date)) (\(daysAgo(from: best.date))天前)")
-                                        .font(.subheadline)
-                                }
-                            } else {
-                                Text("暂无")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                }
+        .sheet(isPresented: $showingMoodInput) {
+            if let item = selectedItem {
+                QuickMoodInputView(preSelectedItem: item)
             }
         }
-        .navigationTitle("概览")
         .sheet(isPresented: $showingAddItem) {
             AddItemView()
         }
+        .onAppear {
+            if selectedItemId == nil, let firstItem = items.first {
+                selectedItemId = firstItem.persistentModelID
+            }
+        }
+    }
+    
+    private func hasTodayMood(_ item: Item) -> Bool {
+        let calendar = Calendar.current
+        return item.moods.contains { calendar.isDate($0.date, inSameDayAs: Date()) }
+    }
+    
+    private var userProfileHeader: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(userVM.getGreeting())")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                
+                if userVM.isAuthenticated, let user = userVM.currentUser {
+                    Text(user.name)
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("点击登录")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            Button {
+                showingUserProfile = true
+            } label: {
+                if userVM.isAuthenticated, let user = userVM.currentUser,
+                   let avatarUrl = user.avatarUrl {
+                    AsyncImage(url: URL(fileURLWithPath: avatarUrl)) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 50, height: 50)
+                            .clipShape(Circle())
+                    } placeholder: {
+                        Image(systemName: "person.circle.fill")
+                            .font(.system(size: 50))
+                            .foregroundColor(.gray)
+                    }
+                } else {
+                    Image(systemName: "person.circle.fill")
+                        .font(.system(size: 50))
+                        .foregroundColor(.gray)
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    private func moodTrendCard(item: Item) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("近期心情趋势")
+                .font(.headline)
+            
+            WeekMoodChart(items: [item])
+                .frame(height: 200)
+                .padding(.vertical, 8)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.1), radius: 10)
+        )
+    }
+    
+    private func statsOverviewCard(item: Item) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("统计概览")
+                .font(.headline)
+            
+            HStack(spacing: 20) {
+                StatItemView(
+                    title: "本周平均",
+                    value: String(format: "%.1f", weeklyAverageMood(item)),
+                    icon: "chart.bar.fill",
+                    color: .blue
+                )
+                
+                StatItemView(
+                    title: "连续记录",
+                    value: "\(consecutiveRecordDays(item))天",
+                    icon: "flame.fill",
+                    color: .orange
+                )
+            }
+            
+            Divider()
+            
+            HStack(spacing: 20) {
+                if let worst = getWorstMood(item) {
+                    MoodExtremeView(
+                        title: "最低心情",
+                        date: worst.date,
+                        value: worst.value,
+                        color: .red
+                    )
+                }
+                
+                if let best = getBestMood(item) {
+                    MoodExtremeView(
+                        title: "最高心情",
+                        date: best.date,
+                        value: best.value,
+                        color: .blue
+                    )
+                }
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.1), radius: 10)
+        )
     }
     
     // 计算本周平均心情
-    private func weeklyAverageMood() -> Double {
+    private func weeklyAverageMood(_ item: Item) -> Double {
         let calendar = Calendar.current
         let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date()))!
         
         var totalValue = 0
         var count = 0
         
-        for item in items {
-            for mood in item.moods {
-                if calendar.isDate(mood.date, equalTo: startOfWeek, toGranularity: .weekOfYear) {
-                    totalValue += mood.value
-                    count += 1
-                }
+        for mood in item.moods {
+            if calendar.isDate(mood.date, equalTo: startOfWeek, toGranularity: .weekOfYear) {
+                totalValue += mood.value
+                count += 1
             }
         }
         
@@ -182,21 +286,13 @@ struct OverviewView: View {
     }
     
     // 计算连续记录天数
-    private func consecutiveRecordDays() -> Int {
+    private func consecutiveRecordDays(_ item: Item) -> Int {
         let calendar = Calendar.current
         var currentDate = calendar.startOfDay(for: Date())
         var consecutiveDays = 0
         
         while true {
-            var hasRecord = false
-            for item in items {
-                if item.moods.contains(where: { calendar.isDate($0.date, inSameDayAs: currentDate) }) {
-                    hasRecord = true
-                    break
-                }
-            }
-            
-            if !hasRecord {
+            if !item.moods.contains(where: { calendar.isDate($0.date, inSameDayAs: currentDate) }) {
                 break
             }
             
@@ -207,45 +303,18 @@ struct OverviewView: View {
         return consecutiveDays
     }
     
-    // 添加新的辅助方法
-    private func getWorstMood() -> Mood? {
+    private func getWorstMood(_ item: Item) -> Mood? {
         let calendar = Calendar.current
         let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: Date())!
-        let recentMoods = items.flatMap { $0.moods }.filter { $0.date >= thirtyDaysAgo }
+        let recentMoods = item.moods.filter { $0.date >= thirtyDaysAgo }
         return recentMoods.min { $0.value < $1.value || ($0.value == $1.value && $0.date > $1.date) }
     }
     
-    private func getBestMood() -> Mood? {
+    private func getBestMood(_ item: Item) -> Mood? {
         let calendar = Calendar.current
         let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: Date())!
-        let recentMoods = items.flatMap { $0.moods }.filter { $0.date >= thirtyDaysAgo }
+        let recentMoods = item.moods.filter { $0.date >= thirtyDaysAgo }
         return recentMoods.max { $0.value < $1.value || ($0.value == $1.value && $0.date < $1.date) }
-    }
-    
-    private func daysAgo(from date: Date) -> Int {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let moodDate = calendar.startOfDay(for: date)
-        let components = calendar.dateComponents([.day], from: moodDate, to: today)
-        return components.day ?? 0
-    }
-    
-    private func moodColor(_ value: Int) -> Color {
-        switch value {
-        case 1: return .red.opacity(0.8)
-        case 2: return .orange.opacity(0.8)
-        case 3: return .yellow.opacity(0.8)
-        case 4: return .mint.opacity(0.8)
-        case 5: return .blue.opacity(0.8)
-        default: return .gray.opacity(0.8)
-        }
-    }
-    
-    // 添加日期格式化函数
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "M/d"
-        return formatter.string(from: date)
     }
 }
 
@@ -423,4 +492,239 @@ struct QuickMoodRow: View {
         default: return .gray
         }
     }
+}
+
+// 新增的辅助视图组件
+struct StatItemView: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(color)
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            Text(value)
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(color)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct MoodExtremeView: View {
+    let title: String
+    let date: Date
+    let value: Int
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            HStack(spacing: 8) {
+                ForEach(1...5, id: \.self) { i in
+                    Circle()
+                        .fill(i <= value ? color : Color.gray.opacity(0.3))
+                        .frame(width: 8, height: 8)
+                }
+            }
+            
+            Text(formatDate(date))
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M月d日"
+        return formatter.string(from: date)
+    }
+}
+
+struct TodayMoodSummaryView: View {
+    let items: [Item]
+    @State private var showingMoodInput = false
+    @State private var selectedItemId: PersistentIdentifier?
+    
+    var todayMoods: [(Item, Mood)] {
+        let calendar = Calendar.current
+        return items.compactMap { item in
+            if let mood = item.moods.first(where: { calendar.isDate($0.date, inSameDayAs: Date()) }) {
+                return (item, mood)
+            }
+            return nil
+        }
+    }
+    
+    var itemsWithoutMood: [Item] {
+        let calendar = Calendar.current
+        return items.filter { item in
+            !item.moods.contains { calendar.isDate($0.date, inSameDayAs: Date()) }
+        }
+    }
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            // 事项选择器
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(items) { item in
+                        Button {
+                            selectedItemId = item.persistentModelID
+                            showingMoodInput = true
+                        } label: {
+                            VStack(spacing: 6) {
+                                Image(systemName: item.icon)
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(hasMoodToday(item) ? .blue : .gray)
+                                Text(item.name)
+                                    .font(.subheadline)
+                            }
+                            .frame(width: 80, height: 80)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(.systemBackground))
+                                    .shadow(color: .black.opacity(0.1), radius: 5)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal)
+            }
+            
+            // 今日心情列表
+            ForEach(todayMoods, id: \.0.persistentModelID) { item, mood in
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        ItemIconView(icon: item.icon, color: .blue)
+                        Text(item.name)
+                            .font(.headline)
+                        
+                        Spacer()
+                        
+                        Button {
+                            selectedItemId = item.persistentModelID
+                            showingMoodInput = true
+                        } label: {
+                            Image(systemName: "pencil.circle")
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    
+                    HStack(spacing: 16) {
+                        ForEach(1...5, id: \.self) { value in
+                            VStack(spacing: 8) {
+                                Circle()
+                                    .fill(value <= mood.value ? moodColor(mood.value) : Color.gray.opacity(0.3))
+                                    .frame(width: 12, height: 12)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        Text(moodText(mood.value))
+                            .font(.subheadline)
+                            .foregroundColor(moodColor(mood.value))
+                    }
+                    
+                    if !mood.note.isEmpty {
+                        Text(mood.note)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.systemBackground))
+                        .shadow(color: .black.opacity(0.1), radius: 10)
+                )
+            }
+            
+            // 未记录心情的事项提示
+            if !itemsWithoutMood.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("待记录事项")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    
+                    ForEach(itemsWithoutMood) { item in
+                        Button {
+                            selectedItemId = item.persistentModelID
+                            showingMoodInput = true
+                        } label: {
+                            HStack {
+                                ItemIconView(icon: item.icon, color: .gray)
+                                Text(item.name)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Image(systemName: "plus.circle")
+                                    .foregroundColor(.blue)
+                            }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(.systemBackground))
+                                    .shadow(color: .black.opacity(0.05), radius: 5)
+                            )
+                        }
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+        .sheet(isPresented: $showingMoodInput) {
+            if let selectedItemId = selectedItemId,
+               let selectedItem = items.first(where: { $0.persistentModelID == selectedItemId }) {
+                QuickMoodInputView(preSelectedItem: selectedItem)
+            }
+        }
+    }
+    
+    private func hasMoodToday(_ item: Item) -> Bool {
+        let calendar = Calendar.current
+        return item.moods.contains { calendar.isDate($0.date, inSameDayAs: Date()) }
+    }
+    
+    private func moodText(_ value: Int) -> String {
+        switch value {
+        case 1: return "很差"
+        case 2: return "较差"
+        case 3: return "一般"
+        case 4: return "不错"
+        case 5: return "很好"
+        default: return ""
+        }
+    }
+    
+    private func moodColor(_ value: Int) -> Color {
+        switch value {
+        case 1: return .red.opacity(0.8)
+        case 2: return .orange.opacity(0.8)
+        case 3: return .yellow.opacity(0.8)
+        case 4: return .mint.opacity(0.8)
+        case 5: return .blue.opacity(0.8)
+        default: return .gray.opacity(0.8)
+        }
+    }
+}
+
+#Preview {
+    OverviewView()
+        .modelContainer(for: Item.self, inMemory: true)
 }
