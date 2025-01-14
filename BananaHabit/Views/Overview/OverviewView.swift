@@ -10,6 +10,7 @@ struct OverviewView: View {
     @State private var showingUserProfile = false
     @State private var showingMoodInput = false
     @State private var selectedItemId: PersistentIdentifier?
+    @State private var isItemSelectorExpanded = false
     
     var selectedItem: Item? {
         if let selectedItemId = selectedItemId {
@@ -26,53 +27,95 @@ struct OverviewView: View {
                     userProfileHeader
                     
                     // 事项选择器
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(items) { item in
+                    VStack(spacing: 8) {
+                        if isItemSelectorExpanded {
+                            // 展开状态
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(items) { item in
+                                        Button {
+                                            withAnimation(.spring(response: 0.3)) {
+                                                selectedItemId = item.persistentModelID
+                                                isItemSelectorExpanded = false
+                                            }
+                                        } label: {
+                                            VStack(spacing: 6) {
+                                                ItemIconView(
+                                                    icon: item.icon,
+                                                    size: 24,
+                                                    color: selectedItemId == item.persistentModelID ? .blue : .gray
+                                                )
+                                                Text(item.name)
+                                                    .font(.subheadline)
+                                                    .foregroundColor(selectedItemId == item.persistentModelID ? .blue : .primary)
+                                            }
+                                            .frame(width: 80, height: 80)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(selectedItemId == item.persistentModelID ? 
+                                                        Color.blue.opacity(0.1) : 
+                                                        Color(.systemBackground))
+                                                    .shadow(color: .black.opacity(0.1), radius: 5)
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                        .transition(.scale.combined(with: .opacity))
+                                    }
+                                    
+                                    Button {
+                                        showingAddItem = true
+                                    } label: {
+                                        VStack(spacing: 6) {
+                                            Image(systemName: "plus.circle.fill")
+                                                .font(.system(size: 24))
+                                                .foregroundColor(.blue)
+                                            Text("添加事项")
+                                                .font(.subheadline)
+                                                .foregroundColor(.blue)
+                                        }
+                                        .frame(width: 80, height: 80)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                                .background(Color.blue.opacity(0.05))
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .transition(.scale.combined(with: .opacity))
+                                }
+                                .padding(.horizontal)
+                            }
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                        } else {
+                            // 收起状态
+                            if let item = selectedItem {
                                 Button {
-                                    withAnimation {
-                                        selectedItemId = item.persistentModelID
+                                    withAnimation(.spring(response: 0.3)) {
+                                        isItemSelectorExpanded = true
                                     }
                                 } label: {
-                                    VStack(spacing: 6) {
-                                        ItemIconView(
-                                            icon: item.icon,
-                                            size: 24,
-                                            color: selectedItemId == item.persistentModelID ? .blue : .gray
-                                        )
+                                    HStack(spacing: 12) {
+                                        ItemIconView(icon: item.icon, size: 24, color: .blue)
                                         Text(item.name)
-                                            .font(.subheadline)
+                                            .font(.headline)
+                                            .foregroundColor(.primary)
+                                        Spacer()
+                                        Image(systemName: "chevron.down")
+                                            .foregroundColor(.gray)
+                                            .rotationEffect(.degrees(isItemSelectorExpanded ? 180 : 0))
                                     }
-                                    .frame(width: 80, height: 80)
+                                    .padding()
+                                    .frame(maxWidth: .infinity)
                                     .background(
                                         RoundedRectangle(cornerRadius: 12)
-                                            .fill(selectedItemId == item.persistentModelID ? 
-                                                Color.blue.opacity(0.1) : 
-                                                Color(.systemBackground))
-                                            .shadow(color: .black.opacity(0.1), radius: 5)
+                                            .fill(Color.blue.opacity(0.1))
                                     )
                                 }
                                 .buttonStyle(.plain)
+                                .padding(.horizontal)
+                                .transition(.move(edge: .top).combined(with: .opacity))
                             }
-                            
-                            Button {
-                                showingAddItem = true
-                            } label: {
-                                VStack(spacing: 6) {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 24))
-                                    Text("添加事项")
-                                        .font(.subheadline)
-                                }
-                                .frame(width: 80, height: 80)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                )
-                            }
-                            .buttonStyle(.plain)
                         }
-                        .padding(.horizontal)
                     }
                     
                     if let item = selectedItem {
