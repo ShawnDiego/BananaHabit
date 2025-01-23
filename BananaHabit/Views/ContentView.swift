@@ -17,6 +17,12 @@ struct ContentView: View {
                     Label("事项", systemImage: "list.bullet")
                 }
                 .tag(1)
+            
+            DiaryListView()
+                .tabItem {
+                    Label("日记", systemImage: "book.closed")
+                }
+                .tag(2)
         }
     }
 } 

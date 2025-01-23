@@ -11,7 +11,8 @@ struct BananaHabitApp: App {
             // 配置 Schema 版本
             let schema = Schema([
                 Item.self,
-                Mood.self
+                Mood.self,
+                Diary.self
             ])
             
             // 创建配置
