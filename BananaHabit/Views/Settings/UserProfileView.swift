@@ -20,6 +20,7 @@ struct UserProfileView: View {
     @State private var showingDocumentPicker = false
     @State private var showingShareSheet = false
     @State private var exportURL: URL?
+    @State private var showingSettings = false
     
     var body: some View {
         NavigationView {
@@ -107,6 +108,16 @@ struct UserProfileView: View {
                             Text("提醒设置")
                             Spacer()
                             Image(systemName: "bell")
+                        }
+                    }
+                    
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        HStack {
+                            Text("安全设置")
+                            Spacer()
+                            Image(systemName: "lock.shield")
                         }
                     }
                     
@@ -285,6 +296,9 @@ struct UserProfileView: View {
                 if let url = exportURL {
                     ShareSheet(items: [url])
                 }
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
             }
         }
     }
