@@ -75,16 +75,30 @@ struct DiaryListView: View {
 struct DiaryRowView: View {
     let diary: Diary
     
+    var contentText: String {
+        guard !diary.content.isEmpty,
+              let data = diary.content.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+              let items = json["items"] as? [[String: Any]],
+              let firstItem = items.first,
+              let content = firstItem["content"] as? String else {
+            return ""
+        }
+        return content
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let title = diary.title, !title.isEmpty {
                 Text(title)
                     .font(.headline)
             }
-            Text(diary.content)
-                .lineLimit(2)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+            if !contentText.isEmpty {
+                Text(contentText)
+                    .lineLimit(2)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
             Text(diary.modifiedAt, style: .date)
                 .font(.caption)
                 .foregroundColor(.gray)
