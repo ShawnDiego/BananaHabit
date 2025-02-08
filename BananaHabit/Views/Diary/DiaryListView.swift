@@ -42,25 +42,31 @@ struct DiaryListView: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
-                LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
-                    ForEach(groupedDiaries, id: \.0) { month, monthDiaries in
-                        Section(header: monthHeaderView(month: month)) {
-                            VStack(spacing: 0) {
-                                ForEach(Array(monthDiaries.enumerated()), id: \.element.id) { index, diary in
-                                    NavigationLink(destination: DiaryDetailView(diary: diary)) {
-                                        DiaryRowView(
-                                            diary: diary,
-                                            isLastInSection: index == monthDiaries.count - 1
-                                        )
+            Group {
+                if diaries.isEmpty {
+                    emptyStateView
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
+                            ForEach(groupedDiaries, id: \.0) { month, monthDiaries in
+                                Section(header: monthHeaderView(month: month)) {
+                                    VStack(spacing: 0) {
+                                        ForEach(Array(monthDiaries.enumerated()), id: \.element.id) { index, diary in
+                                            NavigationLink(destination: DiaryDetailView(diary: diary)) {
+                                                DiaryRowView(
+                                                    diary: diary,
+                                                    isLastInSection: index == monthDiaries.count - 1
+                                                )
+                                            }
+                                            .buttonStyle(PlainButtonStyle())
+                                        }
                                     }
-                                    .buttonStyle(PlainButtonStyle())
+                                    .background(Color(.systemBackground))
+                                    .cornerRadius(16)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
                                 }
                             }
-                            .background(Color(.systemBackground))
-                            .cornerRadius(16)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
                         }
                     }
                 }
@@ -79,6 +85,39 @@ struct DiaryListView: View {
                 DiaryDetailView(diary: nil)
             }
         }
+    }
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "book.closed")
+                .font(.system(size: 60))
+                .foregroundColor(.orange.opacity(0.8))
+            
+            VStack(spacing: 8) {
+                Text("还没有任何日记")
+                    .font(.title3)
+                    .fontWeight(.medium)
+                
+                Text("记录下你的心情故事吧")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            Button {
+                showingAddDiary = true
+            } label: {
+                Label("写下第一篇日记", systemImage: "square.and.pencil")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(width: 200)
+                    .background(Color.orange)
+                    .cornerRadius(12)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemGroupedBackground))
     }
     
     private func monthHeaderView(month: String) -> some View {

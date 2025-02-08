@@ -26,140 +26,144 @@ struct OverviewView: View {
                     // 用户信息头部
                     userProfileHeader
                     
-                    // 事项选择器
-                    VStack(spacing: 8) {
-                        if isItemSelectorExpanded {
-                            // 展开状态
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(items) { item in
-                                        Button {
-                                            withAnimation(.spring(response: 0.3)) {
-                                                selectedItemId = item.persistentModelID
-                                                isItemSelectorExpanded = false
+                    if items.isEmpty {
+                        emptyStateView
+                    } else {
+                        // 事项选择器
+                        VStack(spacing: 8) {
+                            if isItemSelectorExpanded {
+                                // 展开状态
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 12) {
+                                        ForEach(items) { item in
+                                            Button {
+                                                withAnimation(.spring(response: 0.3)) {
+                                                    selectedItemId = item.persistentModelID
+                                                    isItemSelectorExpanded = false
+                                                }
+                                            } label: {
+                                                VStack(spacing: 6) {
+                                                    ItemIconView(
+                                                        icon: item.icon,
+                                                        size: 24,
+                                                        color: selectedItemId == item.persistentModelID ? .blue : .gray
+                                                    )
+                                                    Text(item.name)
+                                                        .font(.subheadline)
+                                                        .foregroundColor(selectedItemId == item.persistentModelID ? .blue : .primary)
+                                                }
+                                                .frame(width: 80, height: 80)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(selectedItemId == item.persistentModelID ? 
+                                                            Color.blue.opacity(0.1) : 
+                                                            Color(.systemBackground))
+                                                        .shadow(color: .black.opacity(0.1), radius: 5)
+                                                )
                                             }
+                                            .buttonStyle(.plain)
+                                            .transition(.scale.combined(with: .opacity))
+                                        }
+                                        
+                                        Button {
+                                            showingAddItem = true
                                         } label: {
                                             VStack(spacing: 6) {
-                                                ItemIconView(
-                                                    icon: item.icon,
-                                                    size: 24,
-                                                    color: selectedItemId == item.persistentModelID ? .blue : .gray
-                                                )
-                                                Text(item.name)
+                                                Image(systemName: "plus.circle.fill")
+                                                    .font(.system(size: 24))
+                                                    .foregroundColor(.blue)
+                                                Text("添加事项")
                                                     .font(.subheadline)
-                                                    .foregroundColor(selectedItemId == item.persistentModelID ? .blue : .primary)
+                                                    .foregroundColor(.blue)
                                             }
                                             .frame(width: 80, height: 80)
                                             .background(
                                                 RoundedRectangle(cornerRadius: 12)
-                                                    .fill(selectedItemId == item.persistentModelID ? 
-                                                        Color.blue.opacity(0.1) : 
-                                                        Color(.systemBackground))
-                                                    .shadow(color: .black.opacity(0.1), radius: 5)
+                                                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                                    .background(Color.blue.opacity(0.05))
                                             )
                                         }
                                         .buttonStyle(.plain)
                                         .transition(.scale.combined(with: .opacity))
                                     }
-                                    
+                                    .padding(.horizontal)
+                                }
+                                .transition(.move(edge: .top).combined(with: .opacity))
+                            } else {
+                                // 收起状态
+                                if let item = selectedItem {
                                     Button {
-                                        showingAddItem = true
-                                    } label: {
-                                        VStack(spacing: 6) {
-                                            Image(systemName: "plus.circle.fill")
-                                                .font(.system(size: 24))
-                                                .foregroundColor(.blue)
-                                            Text("添加事项")
-                                                .font(.subheadline)
-                                                .foregroundColor(.blue)
+                                        withAnimation(.spring(response: 0.3)) {
+                                            isItemSelectorExpanded = true
                                         }
-                                        .frame(width: 80, height: 80)
+                                    } label: {
+                                        HStack(spacing: 12) {
+                                            ItemIconView(icon: item.icon, size: 24, color: .blue)
+                                            Text(item.name)
+                                                .font(.headline)
+                                                .foregroundColor(.primary)
+                                            Spacer()
+                                            Image(systemName: "chevron.down")
+                                                .foregroundColor(.gray)
+                                                .rotationEffect(.degrees(isItemSelectorExpanded ? 180 : 0))
+                                        }
+                                        .padding()
+                                        .frame(maxWidth: .infinity)
                                         .background(
                                             RoundedRectangle(cornerRadius: 12)
-                                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                                                .background(Color.blue.opacity(0.05))
+                                                .fill(Color.blue.opacity(0.1))
                                         )
                                     }
                                     .buttonStyle(.plain)
-                                    .transition(.scale.combined(with: .opacity))
-                                }
-                                .padding(.horizontal)
-                            }
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                        } else {
-                            // 收起状态
-                            if let item = selectedItem {
-                                Button {
-                                    withAnimation(.spring(response: 0.3)) {
-                                        isItemSelectorExpanded = true
-                                    }
-                                } label: {
-                                    HStack(spacing: 12) {
-                                        ItemIconView(icon: item.icon, size: 24, color: .blue)
-                                        Text(item.name)
-                                            .font(.headline)
-                                            .foregroundColor(.primary)
-                                        Spacer()
-                                        Image(systemName: "chevron.down")
-                                            .foregroundColor(.gray)
-                                            .rotationEffect(.degrees(isItemSelectorExpanded ? 180 : 0))
-                                    }
-                                    .padding()
-                                    .frame(maxWidth: .infinity)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .fill(Color.blue.opacity(0.1))
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                                .padding(.horizontal)
-                                .transition(.move(edge: .top).combined(with: .opacity))
-                            }
-                        }
-                    }
-                    
-                    if let item = selectedItem {
-                        // 今日心情卡片
-                        VStack {
-                            if hasTodayMood(item) {
-                                TodayMoodView(item: item)
-                                    .frame(height: 120)
-                            } else {
-                                Button {
-                                    showingMoodInput = true
-                                } label: {
-                                    VStack(spacing: 16) {
-                                        Image(systemName: "plus.circle.fill")
-                                            .font(.system(size: 40))
-                                            .foregroundColor(.blue)
-                                        
-                                        Text("记录今天的心情")
-                                            .font(.headline)
-                                        
-                                        Text("每日记录帮助你更好地了解自己")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 180)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .fill(Color(.systemBackground))
-                                            .shadow(color: .black.opacity(0.1), radius: 10)
-                                    )
+                                    .padding(.horizontal)
+                                    .transition(.move(edge: .top).combined(with: .opacity))
                                 }
                             }
                         }
-                        .padding(.horizontal)
                         
-                        VStack(spacing: 16) {
-                            // 心情趋势图表
-                            moodTrendCard(item: item)
+                        if let item = selectedItem {
+                            // 今日心情卡片
+                            VStack {
+                                if hasTodayMood(item) {
+                                    TodayMoodView(item: item)
+                                        .frame(height: 120)
+                                } else {
+                                    Button {
+                                        showingMoodInput = true
+                                    } label: {
+                                        VStack(spacing: 16) {
+                                            Image(systemName: "plus.circle.fill")
+                                                .font(.system(size: 40))
+                                                .foregroundColor(.blue)
+                                            
+                                            Text("记录今天的心情")
+                                                .font(.headline)
+                                            
+                                            Text("每日记录帮助你更好地了解自己")
+                                                .font(.subheadline)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 180)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .fill(Color(.systemBackground))
+                                                .shadow(color: .black.opacity(0.1), radius: 10)
+                                        )
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
                             
-                            // 统计数据卡片
-                            statsOverviewCard(item: item)
+                            VStack(spacing: 16) {
+                                // 心情趋势图表
+                                moodTrendCard(item: item)
+                                
+                                // 统计数据卡片
+                                statsOverviewCard(item: item)
+                            }
+                            .padding(.horizontal)
                         }
-                        .padding(.horizontal)
                     }
                 }
                 .padding(.vertical)
@@ -189,6 +193,162 @@ struct OverviewView: View {
                 selectedItemId = firstItem.persistentModelID
             }
         }
+    }
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 32) {
+            // 主要的添加习惯卡片
+            VStack(spacing: 24) {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 80))
+                    .foregroundColor(.pink)
+                
+                VStack(spacing: 12) {
+                    Text("开始记录你的第一个事项心情")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    Text("添加一个你想要记录的事项\n观察每天的心情变化")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                
+                Button {
+                    showingAddItem = true
+                } label: {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                        Text("添加事项")
+                    }
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(width: 200)
+                    .background(Color.blue)
+                    .cornerRadius(12)
+                }
+            }
+            .padding(40)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: .black.opacity(0.1), radius: 10)
+            )
+            .padding(.horizontal)
+            
+            // 功能预览区域
+            VStack(alignment: .leading, spacing: 20) {
+                Text("添加事项心情后，你可以...")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal)
+                
+                // 心情记录预览
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "heart.fill")
+                            .foregroundColor(.gray.opacity(0.5))
+                        Text("每日心情记录")
+                            .font(.headline)
+                            .foregroundColor(.gray.opacity(0.7))
+                    }
+                    
+                    HStack(spacing: 16) {
+                        ForEach(1...5, id: \.self) { value in
+                            Circle()
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(width: 12, height: 12)
+                        }
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.systemBackground))
+                        .opacity(0.7)
+                        .shadow(color: .black.opacity(0.05), radius: 5)
+                )
+                .padding(.horizontal)
+                
+                // 趋势图表预览
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .foregroundColor(.gray.opacity(0.5))
+                        Text("心情趋势分析")
+                            .font(.headline)
+                            .foregroundColor(.gray.opacity(0.7))
+                    }
+                    
+                    Path { path in
+                        path.move(to: CGPoint(x: 0, y: 50))
+                        path.addCurve(
+                            to: CGPoint(x: 300, y: 30),
+                            control1: CGPoint(x: 100, y: 0),
+                            control2: CGPoint(x: 200, y: 60)
+                        )
+                    }
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 2)
+                    .frame(height: 80)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.systemBackground))
+                        .opacity(0.7)
+                        .shadow(color: .black.opacity(0.05), radius: 5)
+                )
+                .padding(.horizontal)
+                
+                // 统计概览预览
+                HStack(spacing: 20) {
+                    // 连续记录预览
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "flame.fill")
+                                .foregroundColor(.orange.opacity(0.3))
+                            Text("连续记录")
+                                .font(.subheadline)
+                                .foregroundColor(.gray.opacity(0.7))
+                        }
+                        Text("-- 天")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.gray.opacity(0.5))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    // 周平均预览
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "chart.bar.fill")
+                                .foregroundColor(.blue.opacity(0.3))
+                            Text("周平均")
+                                .font(.subheadline)
+                                .foregroundColor(.gray.opacity(0.7))
+                        }
+                        Text("--")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.gray.opacity(0.5))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.systemBackground))
+                        .opacity(0.7)
+                        .shadow(color: .black.opacity(0.05), radius: 5)
+                )
+                .padding(.horizontal)
+            }
+        }
+        .padding(.vertical)
     }
     
     private func hasTodayMood(_ item: Item) -> Bool {

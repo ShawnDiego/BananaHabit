@@ -14,19 +14,27 @@ struct ItemListView: View {
         Group {
             if horizontalSizeClass == .compact {
                 NavigationStack {
-                    List {
-                        ForEach(items) { item in
-                            itemRow(item)
-                        }
-                        .onDelete(perform: deleteItems)
-                        .onMove { from, to in
-                            moveItems(from: from, to: to)
+                    Group {
+                        if items.isEmpty {
+                            emptyStateView
+                        } else {
+                            List {
+                                ForEach(items) { item in
+                                    itemRow(item)
+                                }
+                                .onDelete(perform: deleteItems)
+                                .onMove { from, to in
+                                    moveItems(from: from, to: to)
+                                }
+                            }
                         }
                     }
                     .navigationTitle("所有事项")
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
-                            EditButton()
+                            if !items.isEmpty {
+                                EditButton()
+                            }
                         }
                         ToolbarItem(placement: .topBarTrailing) {
                             Button(action: { showingAddItem = true }) {
@@ -78,6 +86,39 @@ struct ItemListView: View {
                 selectedItem = newValue.first
             }
         }
+    }
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "square.text.square")
+                .font(.system(size: 60))
+                .foregroundColor(.blue.opacity(0.8))
+            
+            VStack(spacing: 8) {
+                Text("还没有任何事项")
+                    .font(.title3)
+                    .fontWeight(.medium)
+                
+                Text("添加一个想要记录心情的事项吧")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            Button {
+                showingAddItem = true
+            } label: {
+                Label("添加第一个事项", systemImage: "plus.circle.fill")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(width: 200)
+                    .background(Color.blue)
+                    .cornerRadius(12)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemGroupedBackground))
     }
     
     private func deleteItems(offsets: IndexSet) {
