@@ -6,5 +6,9 @@
 	<array/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>需要使用Face ID来保护您的隐私数据安全</string>
+	<key>NSCameraUsageDescription</key>
+	<string>需要访问相机以拍摄照片并添加到日记中</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>需要访问照片库以选择照片并添加到日记中</string>
 </dict>
 </plist>

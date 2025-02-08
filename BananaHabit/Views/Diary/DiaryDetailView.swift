@@ -1,9 +1,10 @@
 import SwiftUI
 import PhotosUI
 import SwiftData
+import AVFoundation
 
 // 用于表示日记内容的结构
-private struct DiaryContent: Codable, Equatable {
+fileprivate struct DiaryContent: Codable, Equatable {
     enum ContentType: String, Codable, Equatable {
         case text
         case image
@@ -51,6 +52,8 @@ struct DiaryDetailView: View {
     @State private var title: String = ""
     @State private var diaryContent: DiaryContent
     @State private var showingPhotoPicker = false
+    @State private var showingCameraAlert = false
+    @State private var cameraError: String = ""
     
     init(diary: Diary?) {
         self.existingDiary = diary
@@ -72,41 +75,41 @@ struct DiaryDetailView: View {
     }
     
     var body: some View {
-        NavigationView {
-            DiaryFormView(
-                diary: $diary,
-                diaryContent: $diaryContent,
-                title: $title,
-                selectedItem: $selectedItem,
-                selectedDate: $selectedDate,
-                selectedPhotos: $selectedPhotos,
-                showingItemPicker: $showingItemPicker,
-                showingDatePicker: $showingDatePicker,
-                showingPhotoPicker: $showingPhotoPicker,
-                items: items
-            )
-            .navigationTitle(title.isEmpty ? "新日记" : title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") { dismiss() }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("保存") { saveDiary() }
-                }
-            }
-            .sheet(isPresented: $showingDatePicker) {
-                DatePickerSheet(selectedDate: $selectedDate, isPresented: $showingDatePicker)
-            }
-            .sheet(isPresented: $showingItemPicker) {
-                ItemPickerSheet(selectedItem: $selectedItem, items: items, isPresented: $showingItemPicker)
-            }
+        DiaryFormView(
+            diary: $diary,
+            diaryContent: $diaryContent,
+            title: $title,
+            selectedItem: $selectedItem,
+            selectedDate: $selectedDate,
+            selectedPhotos: $selectedPhotos,
+            showingItemPicker: $showingItemPicker,
+            showingDatePicker: $showingDatePicker,
+            showingPhotoPicker: $showingPhotoPicker,
+            items: items
+        )
+        .navigationTitle(title.isEmpty ? "新日记" : title)
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingDatePicker) {
+            DatePickerSheet(selectedDate: $selectedDate, isPresented: $showingDatePicker)
+        }
+        .sheet(isPresented: $showingItemPicker) {
+            ItemPickerSheet(selectedItem: $selectedItem, items: items, isPresented: $showingItemPicker)
         }
         .onChange(of: diaryContent) { _, newContent in
             if let jsonData = try? JSONEncoder().encode(newContent),
                let jsonString = String(data: jsonData, encoding: .utf8) {
                 diary.content = jsonString
+                saveDiary()
             }
+        }
+        .onChange(of: title) { _, _ in
+            saveDiary()
+        }
+        .onChange(of: selectedItem) { _, _ in
+            saveDiary()
+        }
+        .onChange(of: selectedDate) { _, _ in
+            saveDiary()
         }
     }
     
@@ -118,7 +121,6 @@ struct DiaryDetailView: View {
             modelContext.insert(diary)
         }
         try? modelContext.save()
-        dismiss()
     }
 }
 
@@ -133,97 +135,146 @@ private struct DiaryFormView: View {
     @Binding var showingDatePicker: Bool
     @Binding var showingPhotoPicker: Bool
     @State private var selectedRange: NSRange?
+    @State private var showingCamera = false
+    @State private var showingFilePicker = false
     let items: [Item]
+    @State private var showingCameraAlert = false
+    @State private var cameraError: String = ""
     
     var body: some View {
-        ZStack {
-            Form {
-                Section {
+        ScrollView {
+            VStack(spacing: 16) {
+                // 标题和内容区域
+                VStack(alignment: .leading, spacing: 12) {
                     TextField("标题（可选）", text: $title)
                         .onChange(of: title) { _, newValue in
                             diary.title = newValue.isEmpty ? nil : newValue
                         }
                         .font(.title3)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
                     
                     RichTextEditor(content: $diaryContent, selectedRange: $selectedRange)
-                        .frame(minHeight: 200)
+                        .frame(minHeight: UIScreen.main.bounds.height * 0.4)
+                        .padding(.horizontal, 16)
                 }
+                .background(Color(.systemBackground))
                 
-                Section {
-                    ItemSelectionButton(selectedItem: selectedItem, items: items) {
-                        showingItemPicker = true
-                    }
-                    .padding(.vertical, 4)
-                    
-                    DateSelectionButton(selectedDate: selectedDate) {
-                        showingDatePicker = true
-                    }
-                    .padding(.vertical, 4)
-                    
-                    if let item = selectedItem, let date = selectedDate {
-                        if let mood = getMood(for: item, on: date) {
-                            MoodDisplayView(mood: mood)
-                                .padding(.vertical, 8)
-                        } else {
-                            if !Calendar.current.isDateInToday(date) && date > Date() {
-                                Text("未来日期无法记录心情")
-                                    .foregroundColor(.secondary)
-                                    .padding(.vertical, 4)
-                            } else {
-                                MoodInputView(item: item, date: date, onSave: {})
-                                    .padding(.vertical, 8)
-                            }
-                        }
-                    }
-                } header: {
+                // 关联信息区域
+                VStack(alignment: .leading, spacing: 12) {
                     Text("关联信息")
                         .font(.headline)
                         .foregroundColor(.primary)
-                        .textCase(nil)
+                        .padding(.horizontal, 16)
+                    
+                    VStack(spacing: 12) {
+                        ItemSelectionButton(
+                            selectedItem: selectedItem,
+                            items: items,
+                            onSelect: {
+                                showingItemPicker = true
+                            }
+                        )
+                        .padding(.vertical, 4)
+                        
+                        if selectedItem != nil {
+                            DateSelectionButton(selectedDate: selectedDate) {
+                                showingDatePicker = true
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        
+                        if let item = selectedItem, let date = selectedDate {
+                            if let mood = getMood(for: item, on: date) {
+                                MoodDisplayView(mood: mood)
+                                    .padding(.vertical, 8)
+                            } else {
+                                if !Calendar.current.isDateInToday(date) && date > Date() {
+                                    Text("未来日期无法记录心情")
+                                        .foregroundColor(.secondary)
+                                        .padding(.vertical, 4)
+                                } else {
+                                    MoodInputView(item: item, date: date, onSave: {})
+                                        .padding(.vertical, 8)
+                                }
+                            }
+                        }
+                        
+                        if selectedItem != nil && selectedDate == nil {
+                            Text("请选择日期以完成关联")
+                                .foregroundColor(.orange)
+                                .padding(.vertical, 4)
+                        }
+                    }
+                    .padding(16)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(10)
                 }
+                .padding(.horizontal, 16)
                 
-                Section {
-                    HStack {
-                        Image(systemName: "clock")
-                            .foregroundColor(.secondary)
-                        Text("创建时间：")
-                            .foregroundColor(.secondary)
-                        Text(diary.createdAt, style: .date)
-                            .foregroundColor(.primary)
-                    }
-                    HStack {
-                        Image(systemName: "clock.arrow.circlepath")
-                            .foregroundColor(.secondary)
-                        Text("修改时间：")
-                            .foregroundColor(.secondary)
-                        Text(diary.modifiedAt, style: .date)
-                            .foregroundColor(.primary)
-                    }
-                } header: {
+                // 时间信息区域
+                VStack(alignment: .leading, spacing: 12) {
                     Text("时间信息")
                         .font(.headline)
                         .foregroundColor(.primary)
-                        .textCase(nil)
-                }
-            }
-            
-            // 悬浮按钮
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    FloatingButton {
-                        showingPhotoPicker = true
+                        .padding(.horizontal, 16)
+                    
+                    VStack(spacing: 12) {
+                        HStack {
+                            Image(systemName: "clock")
+                                .foregroundColor(.secondary)
+                            Text("创建时间：")
+                                .foregroundColor(.secondary)
+                            Text(diary.createdAt, style: .date)
+                                .foregroundColor(.primary)
+                        }
+                        
+                        HStack {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .foregroundColor(.secondary)
+                            Text("修改时间：")
+                                .foregroundColor(.secondary)
+                            Text(diary.modifiedAt, style: .date)
+                                .foregroundColor(.primary)
+                        }
                     }
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 20)
+                    .padding(16)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(10)
                 }
+                .padding(.horizontal, 16)
             }
+            .padding(.vertical, 16)
         }
+        .background(Color(.systemGroupedBackground))
         .photosPicker(isPresented: $showingPhotoPicker,
                      selection: $selectedPhotos,
                      matching: .images)
+        .sheet(isPresented: $showingCamera) {
+            CameraImagePicker(sourceType: .camera) { image in
+                if let imageData = image.jpegData(compressionQuality: 0.8) {
+                    insertImageAtCursor(imageData: imageData)
+                }
+            }
+        }
+        .alert("无法访问相机", isPresented: $showingCameraAlert) {
+            Button("确定", role: .cancel) {}
+        } message: {
+            Text(cameraError)
+        }
+        .fileImporter(
+            isPresented: $showingFilePicker,
+            allowedContentTypes: [.image]
+        ) { result in
+            switch result {
+            case .success(let url):
+                if let imageData = try? Data(contentsOf: url) {
+                    insertImageAtCursor(imageData: imageData)
+                }
+            case .failure:
+                break
+            }
+        }
         .onChange(of: selectedPhotos) { _, newItems in
             Task {
                 for item in newItems {
@@ -234,6 +285,73 @@ private struct DiaryFormView: View {
                 selectedPhotos.removeAll()
             }
         }
+        .onChange(of: selectedItem) { _, newItem in
+            if newItem != nil && selectedDate == nil {
+                showingDatePicker = true
+            }
+        }
+        .onAppear {
+            setupNotificationObservers()
+        }
+        .onDisappear {
+            removeNotificationObservers()
+        }
+    }
+    
+    private func setupNotificationObservers() {
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("OpenCamera"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            checkCameraPermission()
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("OpenPhotoPicker"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            showingPhotoPicker = true
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("OpenFilePicker"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            showingFilePicker = true
+        }
+    }
+    
+    private func checkCameraPermission() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            showingCamera = true
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        showingCamera = true
+                    } else {
+                        showCameraAlert(message: "您已拒绝访问相机，请在系统设置中允许访问相机")
+                    }
+                }
+            }
+        case .denied, .restricted:
+            showCameraAlert(message: "无法访问相机，请在系统设置中允许访问相机")
+        @unknown default:
+            showCameraAlert(message: "相机访问出现未知错误")
+        }
+    }
+    
+    private func showCameraAlert(message: String) {
+        cameraError = message
+        showingCameraAlert = true
+    }
+    
+    private func removeNotificationObservers() {
+        NotificationCenter.default.removeObserver(self)
     }
     
     private func getMood(for item: Item, on date: Date) -> Mood? {
@@ -281,21 +399,7 @@ private struct DiaryFormView: View {
     }
 }
 
-private struct FloatingButton: View {
-    let onTap: () -> Void
-    
-    var body: some View {
-        Button(action: onTap) {
-            Image(systemName: "plus.circle.fill")
-                .font(.system(size: 50))
-                .foregroundStyle(.white)
-                .background(Color.accentColor.clipShape(Circle()))
-                .shadow(radius: 4)
-        }
-    }
-}
-
-private struct RichTextEditor: UIViewRepresentable {
+fileprivate struct RichTextEditor: UIViewRepresentable {
     @Binding var content: DiaryContent
     @Binding var selectedRange: NSRange?
     
@@ -309,9 +413,27 @@ private struct RichTextEditor: UIViewRepresentable {
         textView.font = .preferredFont(forTextStyle: .body).withSize(18)
         textView.isScrollEnabled = true
         textView.backgroundColor = .clear
-        textView.textContainerInset = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+        textView.textContainerInset = UIEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
         textView.textContainer.lineFragmentPadding = 0
-        updateUIView(textView, context: context)
+        
+        // 添加工具栏
+        let toolbar = UIToolbar(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 44))
+        let cameraButton = UIBarButtonItem(image: UIImage(systemName: "camera"), style: .plain, target: context.coordinator, action: #selector(Coordinator.openCamera))
+        let photoButton = UIBarButtonItem(image: UIImage(systemName: "photo"), style: .plain, target: context.coordinator, action: #selector(Coordinator.openPhotoPicker))
+        let fileButton = UIBarButtonItem(image: UIImage(systemName: "folder"), style: .plain, target: context.coordinator, action: #selector(Coordinator.openFilePicker))
+        let flexSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        
+        toolbar.items = [
+            flexSpace,
+            cameraButton,
+            flexSpace,
+            photoButton,
+            flexSpace,
+            fileButton,
+            flexSpace
+        ]
+        textView.inputAccessoryView = toolbar
+        
         return textView
     }
     
@@ -320,60 +442,137 @@ private struct RichTextEditor: UIViewRepresentable {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.lineSpacing = 8
         
-        for item in content.items {
-            switch item.type {
-            case .text:
-                let attributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.preferredFont(forTextStyle: .body).withSize(18),
-                    .paragraphStyle: paragraphStyle
-                ]
-                let textString = NSAttributedString(string: item.content, attributes: attributes)
-                attributedString.append(textString)
-            case .image:
-                if let imageData = Data(base64Encoded: item.content),
-                   let image = UIImage(data: imageData) {
-                    let maxWidth = textView.frame.width - 20
-                    let aspectRatio = image.size.width / image.size.height
-                    let targetSize = CGSize(width: min(maxWidth, image.size.width),
-                                          height: min(maxWidth / aspectRatio, image.size.height))
-                    
-                    let attachment = NSTextAttachment()
-                    attachment.image = image
-                    attachment.bounds = CGRect(origin: .zero, size: targetSize)
-                    attributedString.append(NSAttributedString(attachment: attachment))
-                    attributedString.append(NSAttributedString(string: "\n"))
-                }
-            }
+        var shouldUpdateText = true
+        
+        // 只有当内容真正发生变化时才更新
+        if let currentText = textView.attributedText {
+            let currentContent = currentText.string
+            let newContent = content.items.filter { $0.type == .text }.map { $0.content }.joined()
+            shouldUpdateText = currentContent != newContent
         }
         
-        textView.attributedText = attributedString
+        if shouldUpdateText {
+            for item in content.items {
+                switch item.type {
+                case .text:
+                    let attributes: [NSAttributedString.Key: Any] = [
+                        .font: UIFont.preferredFont(forTextStyle: .body).withSize(18),
+                        .paragraphStyle: paragraphStyle
+                    ]
+                    let textString = NSAttributedString(string: item.content, attributes: attributes)
+                    attributedString.append(textString)
+                case .image:
+                    if let imageData = Data(base64Encoded: item.content),
+                       let image = UIImage(data: imageData) {
+                        let maxWidth = textView.frame.width - 20
+                        let aspectRatio = image.size.width / image.size.height
+                        let targetSize = CGSize(width: min(maxWidth, image.size.width),
+                                              height: min(maxWidth / aspectRatio, image.size.height))
+                        
+                        let attachment = NSTextAttachment()
+                        attachment.image = image
+                        attachment.bounds = CGRect(origin: .zero, size: targetSize)
+                        attributedString.append(NSAttributedString(attachment: attachment))
+                        attributedString.append(NSAttributedString(string: "\n"))
+                    }
+                }
+            }
+            
+            let selectedRange = textView.selectedRange
+            textView.attributedText = attributedString
+            if selectedRange.location != NSNotFound {
+                textView.selectedRange = selectedRange
+            }
+        }
     }
     
     class Coordinator: NSObject, UITextViewDelegate {
         var parent: RichTextEditor
+        private var isUpdating = false
+        private var lastSelectedRange: NSRange?
         
         init(_ parent: RichTextEditor) {
             self.parent = parent
         }
         
+        @objc func openCamera() {
+            NotificationCenter.default.post(name: NSNotification.Name("OpenCamera"), object: nil)
+        }
+        
+        @objc func openPhotoPicker() {
+            NotificationCenter.default.post(name: NSNotification.Name("OpenPhotoPicker"), object: nil)
+        }
+        
+        @objc func openFilePicker() {
+            NotificationCenter.default.post(name: NSNotification.Name("OpenFilePicker"), object: nil)
+        }
+        
         func textViewDidChange(_ textView: UITextView) {
-            // 更新内容
+            guard !isUpdating else { return }
+            isUpdating = true
+            
             let text = textView.attributedText.string
             
-            // 找到最后一个文本项的索引
-            let lastTextItemIndex = parent.content.items.lastIndex { $0.type == .text }
+            // 更新或创建文本内容
+            let textItems = parent.content.items.filter { $0.type == .image }
+            let newTextItem = DiaryContent.ContentItem(type: .text, content: text)
+            parent.content.items = [newTextItem] + textItems
             
-            if let index = lastTextItemIndex {
-                // 更新现有的文本项
-                parent.content.items[index].content = text
-            } else {
-                // 如果没有文本项，添加一个新的
-                parent.content.items.append(DiaryContent.ContentItem(type: .text, content: text))
-            }
+            isUpdating = false
         }
         
         func textViewDidChangeSelection(_ textView: UITextView) {
-            parent.selectedRange = textView.selectedRange
+            let newRange = textView.selectedRange
+            guard newRange != lastSelectedRange else { return }
+            lastSelectedRange = newRange
+            
+            DispatchQueue.main.async {
+                self.parent.selectedRange = newRange
+            }
+        }
+    }
+}
+
+// 相机拍照的 ImagePicker
+struct CameraImagePicker: UIViewControllerRepresentable {
+    @Environment(\.dismiss) private var dismiss
+    let sourceType: UIImagePickerController.SourceType
+    let onImagePicked: (UIImage) -> Void
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = sourceType
+        picker.delegate = context.coordinator
+        picker.allowsEditing = true // 允许编辑（裁剪）
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: CameraImagePicker
+        
+        init(_ parent: CameraImagePicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController,
+                                 didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            // 优先使用编辑后的图片，如果没有则使用原图
+            if let editedImage = info[.editedImage] as? UIImage {
+                parent.onImagePicked(editedImage)
+            } else if let originalImage = info[.originalImage] as? UIImage {
+                parent.onImagePicked(originalImage)
+            }
+            picker.dismiss(animated: true)
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            picker.dismiss(animated: true)
         }
     }
 }
@@ -381,10 +580,10 @@ private struct RichTextEditor: UIViewRepresentable {
 private struct ItemSelectionButton: View {
     let selectedItem: Item?
     let items: [Item]
-    let action: () -> Void
+    let onSelect: () -> Void
     
     var body: some View {
-        Button(action: action) {
+        Button(action: onSelect) {
             HStack {
                 Image(systemName: "tag")
                     .foregroundColor(.accentColor)
@@ -472,23 +671,40 @@ private struct ItemPickerSheet: View {
     
     var body: some View {
         NavigationView {
-            List {
-                ForEach(items) { item in
-                    Button(action: {
-                        selectedItem = item
-                        isPresented = false
-                    }) {
-                        HStack {
-                            ItemIconView2(item: item)
-                            Text(item.name)
-                            Spacer()
-                            if selectedItem?.id == item.id {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(.accentColor)
+            Group {
+                if items.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "square.stack.3d.up.slash")
+                            .font(.system(size: 48))
+                            .foregroundColor(.gray)
+                        Text("还没有心情事项")
+                            .font(.headline)
+                        Text("请先在主页添加心情事项")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(.systemGroupedBackground))
+                } else {
+                    List {
+                        ForEach(items) { item in
+                            Button(action: {
+                                selectedItem = item
+                                isPresented = false
+                            }) {
+                                HStack {
+                                    ItemIconView2(item: item)
+                                    Text(item.name)
+                                    Spacer()
+                                    if selectedItem?.id == item.id {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.accentColor)
+                                    }
+                                }
                             }
+                            .foregroundColor(.primary)
                         }
                     }
-                    .foregroundColor(.primary)
                 }
             }
             .navigationTitle("选择心情事项")

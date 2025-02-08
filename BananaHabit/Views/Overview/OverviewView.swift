@@ -5,6 +5,7 @@ import Charts
 struct OverviewView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
+    @Query private var diaries: [Diary]
     @State private var showingAddItem = false
     @EnvironmentObject private var userVM: UserViewModel
     @State private var showingUserProfile = false
@@ -424,20 +425,54 @@ struct OverviewView: View {
             Text("统计概览")
                 .font(.headline)
             
-            HStack(spacing: 20) {
-                StatItemView(
-                    title: "本周平均",
-                    value: String(format: "%.1f", weeklyAverageMood(item)),
-                    icon: "chart.bar.fill",
-                    color: .blue
-                )
+            // 心情统计
+            VStack(alignment: .leading, spacing: 8) {
+                Text("心情记录")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
                 
-                StatItemView(
-                    title: "连续记录",
-                    value: "\(consecutiveRecordDays(item))天",
-                    icon: "flame.fill",
-                    color: .orange
-                )
+                HStack(spacing: 20) {
+                    StatItemView(
+                        title: "本周平均",
+                        value: String(format: "%.1f", weeklyAverageMood(item)),
+                        icon: "chart.bar.fill",
+                        color: .blue
+                    )
+                    
+                    StatItemView(
+                        title: "连续记录",
+                        value: "\(consecutiveRecordDays(item))天",
+                        icon: "flame.fill",
+                        color: .orange
+                    )
+                }
+            }
+            
+            if !diaries.isEmpty {
+                Divider()
+                
+                // 日记统计
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("日记记录")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    HStack(spacing: 20) {
+                        StatItemView(
+                            title: "本周日记",
+                            value: "\(weeklyDiaryCount())篇",
+                            icon: "doc.text.fill",
+                            color: .purple
+                        )
+                        
+                        StatItemView(
+                            title: "总日记数",
+                            value: "\(diaries.count)篇",
+                            icon: "books.vertical.fill",
+                            color: .green
+                        )
+                    }
+                }
             }
             
             Divider()
@@ -504,6 +539,16 @@ struct OverviewView: View {
         }
         
         return consecutiveDays
+    }
+    
+    // 计算本周日记数量
+    private func weeklyDiaryCount() -> Int {
+        let calendar = Calendar.current
+        let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date()))!
+        
+        return diaries.filter { diary in
+            calendar.isDate(diary.createdAt, equalTo: startOfWeek, toGranularity: .weekOfYear)
+        }.count
     }
     
     private func getWorstMood(_ item: Item) -> Mood? {
