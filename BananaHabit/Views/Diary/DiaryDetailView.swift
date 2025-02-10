@@ -54,6 +54,7 @@ struct DiaryDetailView: View {
     @State private var showingPhotoPicker = false
     @State private var showingCameraAlert = false
     @State private var cameraError: String = ""
+    @State private var showingDeleteAlert = false
     
     init(diary: Diary?) {
         self.existingDiary = diary
@@ -89,6 +90,30 @@ struct DiaryDetailView: View {
         )
         .navigationTitle(title.isEmpty ? "新日记" : title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if existingDiary != nil {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(role: .destructive) {
+                        showingDeleteAlert = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+        }
+        .alert("删除日记", isPresented: $showingDeleteAlert) {
+            Button("取消", role: .cancel) {}
+            Button("删除", role: .destructive) {
+                if let diary = existingDiary {
+                    modelContext.delete(diary)
+                    try? modelContext.save()
+                    dismiss()
+                }
+            }
+        } message: {
+            Text("确定要删除这篇日记吗？此操作无法撤销。")
+        }
         .sheet(isPresented: $showingDatePicker) {
             DatePickerSheet(selectedDate: $selectedDate, isPresented: $showingDatePicker)
         }
@@ -143,7 +168,7 @@ private struct DiaryFormView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            VStack(spacing: 20) {
                 // 标题和内容区域
                 VStack(alignment: .leading, spacing: 12) {
                     TextField("标题（可选）", text: $title)
@@ -151,6 +176,14 @@ private struct DiaryFormView: View {
                             diary.title = newValue.isEmpty ? nil : newValue
                         }
                         .font(.title3)
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                    
+                    // 添加分隔线
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(height: 1)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
                     
@@ -158,7 +191,12 @@ private struct DiaryFormView: View {
                         .frame(minHeight: UIScreen.main.bounds.height * 0.4)
                         .padding(.horizontal, 16)
                 }
-                .background(Color(.systemBackground))
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.tertiarySystemBackground))
+                        .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
+                )
+                .padding(.horizontal, 20)
                 
                 // 关联信息区域
                 VStack(alignment: .leading, spacing: 12) {
@@ -207,10 +245,13 @@ private struct DiaryFormView: View {
                         }
                     }
                     .padding(16)
-                    .background(Color(.systemBackground))
-                    .cornerRadius(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(.tertiarySystemBackground))
+                            .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
+                    )
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
                 
                 // 时间信息区域
                 VStack(alignment: .leading, spacing: 12) {
@@ -220,33 +261,43 @@ private struct DiaryFormView: View {
                         .padding(.horizontal, 16)
                     
                     VStack(spacing: 12) {
-                        HStack {
+                        HStack(alignment: .center, spacing: 4) {
                             Image(systemName: "clock")
                                 .foregroundColor(.secondary)
+                                .frame(width: 20)
                             Text("创建时间：")
                                 .foregroundColor(.secondary)
                             Text(diary.createdAt, style: .date)
                                 .foregroundColor(.primary)
+                            Spacer()
                         }
                         
-                        HStack {
+                        HStack(alignment: .center, spacing: 4) {
                             Image(systemName: "clock.arrow.circlepath")
                                 .foregroundColor(.secondary)
+                                .frame(width: 20)
                             Text("修改时间：")
                                 .foregroundColor(.secondary)
                             Text(diary.modifiedAt, style: .date)
                                 .foregroundColor(.primary)
+                            Spacer()
                         }
                     }
                     .padding(16)
-                    .background(Color(.systemBackground))
-                    .cornerRadius(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(.tertiarySystemBackground))
+                            .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
+                    )
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
             }
             .padding(.vertical, 16)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(
+            Color(.secondarySystemBackground)
+                .edgesIgnoringSafeArea(.all)
+        )
         .photosPicker(isPresented: $showingPhotoPicker,
                      selection: $selectedPhotos,
                      matching: .images)
@@ -457,7 +508,8 @@ fileprivate struct RichTextEditor: UIViewRepresentable {
                 case .text:
                     let attributes: [NSAttributedString.Key: Any] = [
                         .font: UIFont.preferredFont(forTextStyle: .body).withSize(18),
-                        .paragraphStyle: paragraphStyle
+                        .paragraphStyle: paragraphStyle,
+                        .foregroundColor: UIColor.label
                     ]
                     let textString = NSAttributedString(string: item.content, attributes: attributes)
                     attributedString.append(textString)

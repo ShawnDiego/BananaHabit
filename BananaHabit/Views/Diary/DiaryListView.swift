@@ -1,6 +1,21 @@
 import SwiftUI
 import SwiftData
 
+// 用于表示日记内容的结构
+fileprivate struct DiaryContent: Codable {
+    struct ContentItem: Codable {
+        enum ContentType: String, Codable {
+            case text
+            case image
+        }
+        
+        let type: ContentType
+        var content: String
+    }
+    
+    var items: [ContentItem]
+}
+
 enum DiarySort {
     case title
     case createdDate
@@ -9,35 +24,18 @@ enum DiarySort {
 
 struct DiaryListView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var diaries: [Diary]
-    @State private var sortOption: DiarySort = .modifiedDate
+    @Query(sort: \Diary.modifiedAt, order: .reverse) private var diaries: [Diary]
+    @State private var showingDeleteAlert = false
+    @State private var diaryToDelete: Diary?
     @State private var showingAddDiary = false
     
-    init() {
-        let sortDescriptors: [SortDescriptor<Diary>] = [
-            SortDescriptor(\Diary.modifiedAt, order: .reverse)
-        ]
-        _diaries = Query(sort: sortDescriptors)
-    }
-    
     var groupedDiaries: [(String, [Diary])] {
-        let grouped = Dictionary(grouping: sortedDiaries) { diary -> String in
+        let grouped = Dictionary(grouping: diaries) { diary -> String in
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy年MM月"
             return formatter.string(from: diary.modifiedAt)
         }
         return grouped.sorted { $0.key > $1.key }
-    }
-    
-    var sortedDiaries: [Diary] {
-        switch sortOption {
-        case .title:
-            return diaries.sorted { ($0.title ?? "") < ($1.title ?? "") }
-        case .createdDate:
-            return diaries.sorted { $0.createdAt > $1.createdAt }
-        case .modifiedDate:
-            return diaries.sorted { $0.modifiedAt > $1.modifiedAt }
-        }
     }
     
     var body: some View {
@@ -52,13 +50,14 @@ struct DiaryListView: View {
                                 Section(header: monthHeaderView(month: month)) {
                                     VStack(spacing: 0) {
                                         ForEach(Array(monthDiaries.enumerated()), id: \.element.id) { index, diary in
-                                            NavigationLink(destination: DiaryDetailView(diary: diary)) {
-                                                DiaryRowView(
-                                                    diary: diary,
-                                                    isLastInSection: index == monthDiaries.count - 1
-                                                )
-                                            }
-                                            .buttonStyle(PlainButtonStyle())
+                                            DiaryItemView(
+                                                diary: diary,
+                                                isLastInSection: index == monthDiaries.count - 1,
+                                                onDelete: {
+                                                    diaryToDelete = diary
+                                                    showingDeleteAlert = true
+                                                }
+                                            )
                                         }
                                     }
                                     .background(Color(.systemBackground))
@@ -81,9 +80,27 @@ struct DiaryListView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingAddDiary) {
+        }
+        .sheet(isPresented: $showingAddDiary) {
+            NavigationView {
                 DiaryDetailView(diary: nil)
             }
+        }
+        .alert("删除日记", isPresented: $showingDeleteAlert) {
+            Button("取消", role: .cancel) {
+                diaryToDelete = nil
+            }
+            Button("删除", role: .destructive) {
+                if let diary = diaryToDelete {
+                    withAnimation {
+                        modelContext.delete(diary)
+                        try? modelContext.save()
+                    }
+                }
+                diaryToDelete = nil
+            }
+        } message: {
+            Text("确定要删除这篇日记吗？此操作无法撤销。")
         }
     }
     
@@ -145,30 +162,40 @@ struct DiaryListView: View {
             .frame(height: 8)
         }
     }
+}
+
+private struct DiaryItemView: View {
+    let diary: Diary
+    let isLastInSection: Bool
+    let onDelete: () -> Void
     
-    private func deleteDiary(at offsets: IndexSet) {
-        for index in offsets {
-            modelContext.delete(sortedDiaries[index])
+    var body: some View {
+        NavigationLink(destination: DiaryDetailView(diary: diary)) {
+            DiaryRowView(
+                diary: diary,
+                isLastInSection: isLastInSection
+            )
         }
-        try? modelContext.save()
+        .buttonStyle(PlainButtonStyle())
+        .overlay(alignment: .bottom) {
+            if !isLastInSection {
+                Divider()
+                    .padding(.leading, 68)
+            }
+        }
+        .contextMenu {
+            Button(role: .destructive) {
+                onDelete()
+            } label: {
+                Label("删除日记", systemImage: "trash")
+            }
+        }
     }
 }
 
-struct DiaryRowView: View {
+private struct DiaryRowView: View {
     let diary: Diary
     let isLastInSection: Bool
-    
-    var contentText: String {
-        guard !diary.content.isEmpty,
-              let data = diary.content.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
-              let items = json["items"] as? [[String: Any]],
-              let firstItem = items.first,
-              let content = firstItem["content"] as? String else {
-            return ""
-        }
-        return content
-    }
     
     var dayNumber: String {
         let formatter = DateFormatter()
@@ -190,65 +217,117 @@ struct DiaryRowView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: 12) {
-                // 左侧日期显示
-                VStack(spacing: 2) {
-                    Text(dayNumber)
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.primary)
-                    Text(weekDay)
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+        HStack(alignment: .top, spacing: 12) {
+            // 左侧日期显示
+            VStack(spacing: 2) {
+                Text(dayNumber)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(.primary)
+                Text(weekDay)
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            .frame(width: 40)
+            .padding(.top, 2)
+            
+            // 时间线
+            VStack(spacing: 0) {
+                Circle()
+                    .fill(Color.accentColor.opacity(0.8))
+                    .frame(width: 6, height: 6)
+                if !isLastInSection {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(width: 1)
+                        .frame(maxHeight: .infinity)
                 }
-                .frame(width: 40)
-                
-                // 时间线
-                VStack(spacing: 0) {
-                    Circle()
-                        .fill(Color.accentColor.opacity(0.8))
-                        .frame(width: 6, height: 6)
-                    if !isLastInSection {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.15))
-                            .frame(width: 1)
-                            .frame(maxHeight: .infinity)
-                    }
-                }
-                .padding(.top, 8)
-                
-                // 右侧内容区
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        if let title = diary.title, !title.isEmpty {
-                            Text(title)
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.primary)
-                        }
+            }
+            .padding(.top, 10)
+            
+            // 右侧内容区
+            VStack(alignment: .leading, spacing: 8) {
+                if let title = diary.title, !title.isEmpty {
+                    HStack(alignment: .center) {
+                        Text(title)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.primary)
                         Spacer()
                         Text(timeString)
                             .font(.system(size: 14))
                             .foregroundColor(.secondary)
                     }
-                    
-                    if !contentText.isEmpty {
-                        Text(contentText)
+                }
+                
+                if let preview = getContentPreview(diary.content), !preview.isEmpty {
+                    HStack(alignment: .top, spacing: 8) {
+                        Text(preview)
                             .font(.system(size: 15))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(diary.title == nil ? .primary : .secondary)
                             .lineLimit(3)
                             .lineSpacing(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        if diary.title == nil {
+                            Text(timeString)
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                } else if diary.title == nil {
+                    // 当标题和预览都为空时，显示时间
+                    HStack {
+                        Spacer()
+                        Text(timeString)
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
                     }
                 }
-                .padding(.vertical, 4)
+                
+                // 关联信息
+                if let item = diary.relatedItem {
+                    HStack(spacing: 8) {
+                        Image(systemName: item.icon)
+                            .foregroundColor(.blue)
+                            .font(.caption)
+                        
+                        Text(item.name)
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        
+                        if let date = diary.selectedDate {
+                            Text("·")
+                                .foregroundColor(.secondary)
+                            Text(formatDate(date))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 16)
-            .background(Color(.systemBackground))
-            
-            if !isLastInSection {
-                Divider()
-                    .padding(.leading, 68)
-            }
+            .padding(.vertical, 2)
+            .frame(minHeight: 24) // 添加最小高度确保空内容时的对齐
         }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity)
+        .background(Color(.systemBackground))
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM月dd日"
+        return formatter.string(from: date)
+    }
+    
+    private func getContentPreview(_ content: String) -> String? {
+        if let data = content.data(using: .utf8),
+           let diaryContent = try? JSONDecoder().decode(DiaryContent.self, from: data) {
+            let textContent = diaryContent.items
+                .filter { $0.type == .text }
+                .map { $0.content }
+                .joined()
+            return textContent.isEmpty ? nil : textContent
+        }
+        return content.isEmpty ? nil : content
     }
 } 
