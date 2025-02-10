@@ -127,6 +127,7 @@ struct OverviewView: View {
                             VStack {
                                 if hasTodayMood(item) {
                                     TodayMoodView(item: item)
+                                        .padding(.horizontal)
                                         .frame(height: 120)
                                 } else {
                                     Button {
@@ -151,19 +152,25 @@ struct OverviewView: View {
                                                 .fill(Color(.systemBackground))
                                                 .shadow(color: .black.opacity(0.1), radius: 10)
                                         )
+                                        .padding(.horizontal)
                                     }
                                 }
                             }
-                            .padding(.horizontal)
                             
                             VStack(spacing: 16) {
                                 // 心情趋势图表
                                 moodTrendCard(item: item)
                                 
+                                Divider()
+                                    .padding(.horizontal)
+                                    .frame(height: 2)
+                                    .background(Color(.systemBackground))
+                                    
+                                
                                 // 统计数据卡片
                                 statsOverviewCard(item: item)
                             }
-                            .padding(.horizontal)
+                            // .padding(.horizontal)
                         }
                     }
                 }
@@ -572,25 +579,64 @@ struct WeekMoodChart: View {
     
     var body: some View {
         Chart {
-            ForEach(weekData().filter { $0.value > 0 }, id: \.date) { data in
-                LineMark(
-                    x: .value("日期", data.date, unit: .day),
-                    y: .value("心情", data.value)
-                )
-                .foregroundStyle(moodColor(data.value))
-                .symbol {
-                    Circle()
-                        .fill(moodColor(data.value))
-                        .frame(width: 10, height: 10)
+            let filteredData = weekData()
+            
+            // 首先绘制连线和区域
+            ForEach(Array(filteredData.enumerated()), id: \.1.date) { index, data in
+                if data.value > 0 {
+                    // 绘制线段
+                    LineMark(
+                        x: .value("日期", data.date, unit: .day),
+                        y: .value("心情", data.value)
+                    )
+                    .foregroundStyle(moodColor(data.value))
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+                    
+                    // 绘制区域
+                    AreaMark(
+                        x: .value("日期", data.date, unit: .day),
+                        y: .value("心情", data.value)
+                    )
+                    .foregroundStyle(
+                        .linearGradient(
+                            colors: [
+                                moodColor(data.value).opacity(0.2),
+                                .clear
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
                 }
-                
-                AreaMark(
-                    x: .value("日期", data.date, unit: .day),
-                    y: .value("心情", data.value)
-                )
-                .foregroundStyle(
-                    Gradient(colors: [moodColor(data.value).opacity(0.2), .clear])
-                )
+            }
+            
+            // 然后绘制数据点
+            ForEach(Array(filteredData.enumerated()), id: \.1.date) { index, data in
+                if data.value > 0 {
+                    // 有记录的点显示实心圆点
+                    PointMark(
+                        x: .value("日期", data.date, unit: .day),
+                        y: .value("心情", data.value)
+                    )
+                    .foregroundStyle(moodColor(data.value))
+                    .symbol {
+                        Circle()
+                            .fill(moodColor(data.value))
+                            .frame(width: 10, height: 10)
+                    }
+                } else {
+                    // 无记录的点显示空心圆圈
+                    PointMark(
+                        x: .value("日期", data.date, unit: .day),
+                        y: .value("心情", 3) // 放在中间位置
+                    )
+                    .foregroundStyle(.clear)
+                    .symbol {
+                        Circle()
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                            .frame(width: 8, height: 8)
+                    }
+                }
             }
         }
         .chartYScale(domain: 0...5)
@@ -656,9 +702,11 @@ struct QuickMoodRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(item.name)
+                    .font(.headline)
                 Spacer()
                 ForEach(1...5, id: \.self) { value in
                     Image(systemName: value <= currentValue ? "circle.fill" : "circle")
+                        .font(.system(size: 24))
                         .foregroundStyle(moodColor(value))
                         .onTapGesture {
                             withAnimation(.spring(response: 0.3)) {
@@ -679,6 +727,13 @@ struct QuickMoodRow: View {
                     }
             }
         }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.1), radius: 10)
+        )
+        .padding(.horizontal)
         .sheet(isPresented: $showingNote) {
             NavigationView {
                 Form {
@@ -856,11 +911,12 @@ struct TodayMoodSummaryView: View {
             
             // 今日心情列表
             ForEach(todayMoods, id: \.0.persistentModelID) { item, mood in
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 16) {
                     HStack {
-                        ItemIconView(icon: item.icon, color: .blue)
+                        ItemIconView(icon: item.icon, size: 32, color: .blue)
                         Text(item.name)
-                            .font(.headline)
+                            .font(.title3)
+                            .fontWeight(.medium)
                         
                         Spacer()
                         
@@ -869,33 +925,34 @@ struct TodayMoodSummaryView: View {
                             showingMoodInput = true
                         } label: {
                             Image(systemName: "pencil.circle")
+                                .font(.system(size: 24))
                                 .foregroundColor(.gray)
                         }
                     }
                     
-                    HStack(spacing: 16) {
+                    HStack(spacing: 20) {
                         ForEach(1...5, id: \.self) { value in
                             VStack(spacing: 8) {
                                 Circle()
                                     .fill(value <= mood.value ? moodColor(mood.value) : Color.gray.opacity(0.3))
-                                    .frame(width: 12, height: 12)
+                                    .frame(width: 16, height: 16)
                             }
                         }
                         
                         Spacer()
                         
                         Text(moodText(mood.value))
-                            .font(.subheadline)
+                            .font(.headline)
                             .foregroundColor(moodColor(mood.value))
                     }
                     
                     if !mood.note.isEmpty {
                         Text(mood.note)
-                            .font(.subheadline)
+                            .font(.body)
                             .foregroundColor(.secondary)
                     }
                 }
-                .padding()
+                .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: 16)

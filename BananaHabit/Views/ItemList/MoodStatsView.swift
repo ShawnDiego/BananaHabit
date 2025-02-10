@@ -91,7 +91,42 @@ struct MoodStatsView: View {
                 
                 // 心情趋势图表
                 Chart {
-                    ForEach(filteredMoods) { mood in
+                    ForEach(Array(filteredMoods.enumerated()), id: \.element.id) { index, mood in
+                        if index < filteredMoods.count - 1 {
+                            let nextMood = filteredMoods[index + 1]
+                            
+                            // 渐变线段
+                            LineMark(
+                                x: .value("日期", mood.date),
+                                y: .value("心情", mood.value)
+                            )
+                            .foregroundStyle(
+                                .linearGradient(
+                                    colors: [moodColor(mood.value), moodColor(nextMood.value)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            
+                            // 渐变阴影区域
+                            AreaMark(
+                                x: .value("日期", mood.date),
+                                y: .value("心情", mood.value)
+                            )
+                            .foregroundStyle(
+                                .linearGradient(
+                                    colors: [
+                                        moodColor(mood.value).opacity(0.2),
+                                        moodColor(nextMood.value).opacity(0.2),
+                                        .clear
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                        }
+                        
+                        // 数据点
                         PointMark(
                             x: .value("日期", mood.date),
                             y: .value("心情", mood.value)

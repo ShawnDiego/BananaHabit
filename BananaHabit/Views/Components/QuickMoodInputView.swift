@@ -8,6 +8,7 @@ struct QuickMoodInputView: View {
     @State private var selectedValue = 3
     @State private var note = ""
     @State private var selectedItemId: PersistentIdentifier?
+    @State private var selectedDate = Date()
     
     let preSelectedItem: Item?
     
@@ -23,113 +24,170 @@ struct QuickMoodInputView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                if preSelectedItem == nil {
-                    if !items.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ForEach(items) { item in
-                                    Button {
-                                        selectedItemId = item.persistentModelID
-                                    } label: {
-                                        VStack(spacing: 6) {
-                                            ItemIconView(
-                                                icon: item.icon,
-                                                size: 24,
-                                                color: selectedItemId == item.persistentModelID ? .blue : .gray
-                                            )
-                                            Text(item.name)
-                                                .font(.subheadline)
-                                        }
-                                        .frame(width: 80, height: 80)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .fill(selectedItemId == item.persistentModelID ? 
-                                                    Color.blue.opacity(0.1) : 
-                                                    Color(.systemBackground))
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .stroke(selectedItemId == item.persistentModelID ? 
-                                                            Color.blue : Color.gray.opacity(0.2),
-                                                            lineWidth: 1)
-                                                )
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
-                                }
+            ScrollView {
+                VStack(spacing: 20) {
+                    if preSelectedItem == nil {
+                        if !items.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("选择事项")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                    .padding(.horizontal)
                                 
-                                NavigationLink {
-                                    AddItemView()
-                                } label: {
-                                    VStack(spacing: 6) {
-                                        Image(systemName: "plus.circle.fill")
-                                            .font(.system(size: 24))
-                                        Text("添加事项")
-                                            .font(.subheadline)
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 12) {
+                                        ForEach(items) { item in
+                                            Button {
+                                                selectedItemId = item.persistentModelID
+                                            } label: {
+                                                VStack(spacing: 8) {
+                                                    ItemIconView(
+                                                        icon: item.icon,
+                                                        size: 32,
+                                                        color: selectedItemId == item.persistentModelID ? .blue : .gray
+                                                    )
+                                                    Text(item.name)
+                                                        .font(.subheadline)
+                                                        .foregroundColor(selectedItemId == item.persistentModelID ? .primary : .secondary)
+                                                }
+                                                .frame(width: 80, height: 80)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 16)
+                                                        .fill(selectedItemId == item.persistentModelID ? 
+                                                            Color.blue.opacity(0.1) : 
+                                                            Color(.tertiarySystemBackground))
+                                                        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                                                )
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                        
+                                        NavigationLink {
+                                            AddItemView()
+                                        } label: {
+                                            VStack(spacing: 8) {
+                                                Image(systemName: "plus.circle.fill")
+                                                    .font(.system(size: 32))
+                                                    .foregroundColor(.blue)
+                                                Text("添加事项")
+                                                    .font(.subheadline)
+                                                    .foregroundColor(.blue)
+                                            }
+                                            .frame(width: 80, height: 80)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 16)
+                                                    .fill(Color.blue.opacity(0.05))
+                                                    .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
                                     }
-                                    .frame(width: 80, height: 80)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                                    )
+                                    .padding(.horizontal)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                        }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(Calendar.current.isDateInToday(selectedDate) ? "今天心情如何？" : "这天心情如何？")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                            .padding(.horizontal)
+                        
+                        HStack(spacing: 24) {
+                            ForEach(1...5, id: \.self) { value in
+                                Button {
+                                    withAnimation(.spring(response: 0.3)) {
+                                        selectedValue = value
+                                    }
+                                } label: {
+                                    VStack(spacing: 8) {
+                                        Image(systemName: value == selectedValue ? "circle.fill" : "circle")
+                                            .font(.system(size: 32))
+                                            .foregroundStyle(moodColor(value))
+                                            .symbolEffect(.bounce, value: selectedValue == value)
+                                        
+                                        Text(moodText(value))
+                                            .font(.subheadline)
+                                            .foregroundStyle(value == selectedValue ? moodColor(value) : .gray)
+                                    }
+                                    .frame(width: 50)
                                 }
                                 .buttonStyle(.plain)
                             }
-                            .padding(.horizontal)
                         }
-                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 12)
                     }
-                } else {
-                    HStack {
-                        ItemIconView(icon: preSelectedItem!.icon, size: 24)
-                        Text(preSelectedItem!.name)
-                            .font(.headline)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
                     .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.blue.opacity(0.1))
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.tertiarySystemBackground))
+                            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
                     )
-                }
-                
-                Text("今天心情如何？")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                
-                HStack(spacing: 20) {
-                    ForEach(1...5, id: \.self) { value in
-                        Button {
-                            withAnimation(.spring(response: 0.3)) {
-                                selectedValue = value
-                            }
-                        } label: {
-                            VStack(spacing: 8) {
-                                Image(systemName: value == selectedValue ? "circle.fill" : "circle")
-                                    .font(.system(size: 32))
-                                    .foregroundStyle(moodColor(value))
-                                    .symbolEffect(.bounce, value: selectedValue == value)
-                                
-                                Text(moodText(value))
-                                    .font(.caption)
-                                    .foregroundStyle(value == selectedValue ? moodColor(value) : .gray)
-                            }
-                            .frame(width: 50)
-                        }
-                        .buttonStyle(.plain)
+                    .padding(.horizontal)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        DatePicker("选择日期", selection: $selectedDate, in: ...Date(), displayedComponents: .date)
+                            .datePickerStyle(.compact)
+                            .tint(.blue)
+                            .padding(.vertical, 8)
                     }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.tertiarySystemBackground))
+                            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                    )
+                    .padding(.horizontal)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("添加备注")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        TextField("记录一下此刻的想法...", text: $note, axis: .vertical)
+                            .textFieldStyle(.plain)
+                            .lineLimit(3...6)
+                            .padding(.vertical, 8)
+                            .foregroundColor(.primary)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.tertiarySystemBackground))
+                            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                    )
+                    .padding(.horizontal)
+                    
+                    Spacer(minLength: 20)
                 }
-                .padding(.vertical, 20)
-                
-                TextField("添加备注（可选）", text: $note, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(3...6)
-                
-                Spacer()
+                .padding(.vertical)
             }
-            .padding()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    if let preSelectedItem = preSelectedItem {
+                        HStack(spacing: 8) {
+                            ItemIconView(icon: preSelectedItem.icon, size: 24, color: .blue)
+                            Text(preSelectedItem.name)
+                                .font(.headline)
+                        }
+                    } else if let selectedItemId = selectedItemId,
+                              let selectedItem = items.first(where: { $0.persistentModelID == selectedItemId }) {
+                        HStack(spacing: 8) {
+                            ItemIconView(icon: selectedItem.icon, size: 24, color: .blue)
+                            Text(selectedItem.name)
+                                .font(.headline)
+                        }
+                    } else {
+                        Text("记录心情")
+                            .font(.headline)
+                    }
+                }
+                
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") {
                         dismiss()
@@ -161,7 +219,7 @@ struct QuickMoodInputView: View {
             guard let selectedItemId = selectedItemId,
                   let selectedItem = items.first(where: { $0.persistentModelID == selectedItemId }) else {
                 let newItem = Item(name: "默认事项", icon: "star.fill")
-                let mood = Mood(date: Date(), value: selectedValue, note: note, item: newItem)
+                let mood = Mood(date: selectedDate, value: selectedValue, note: note, item: newItem)
                 newItem.moods.append(mood)
                 modelContext.insert(newItem)
                 try? modelContext.save()
@@ -170,11 +228,13 @@ struct QuickMoodInputView: View {
             targetItem = selectedItem
         }
         
-        if let existingMood = targetItem.moods.first(where: { Calendar.current.isDateInToday($0.date) }) {
+        let calendar = Calendar.current
+        if let existingMood = targetItem.moods.first(where: { calendar.isDate($0.date, inSameDayAs: selectedDate) }) {
             existingMood.value = selectedValue
             existingMood.note = note
+            existingMood.date = selectedDate
         } else {
-            let mood = Mood(date: Date(), value: selectedValue, note: note, item: targetItem)
+            let mood = Mood(date: selectedDate, value: selectedValue, note: note, item: targetItem)
             targetItem.moods.append(mood)
         }
         try? modelContext.save()
