@@ -139,6 +139,19 @@ struct DiaryDetailView: View {
     }
     
     private func saveDiary() {
+        // 检查日记内容是否为空
+        let hasContent = diaryContent.items.contains { item in
+            if item.type == .text {
+                return !item.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
+            return true // 图片类型的内容不为空
+        }
+        
+        // 如果标题和内容都为空，不保存
+        if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !hasContent {
+            return
+        }
+        
         diary.modifiedAt = Date()
         diary.relatedItem = selectedItem
         diary.selectedDate = selectedDate

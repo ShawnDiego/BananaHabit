@@ -6,6 +6,7 @@ struct OverviewView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
     @Query private var diaries: [Diary]
+    @Query(sort: \PomodoroRecord.startTime, order: .reverse) private var records: [PomodoroRecord]
     @State private var showingAddItem = false
     @EnvironmentObject private var userVM: UserViewModel
     @State private var showingUserProfile = false
@@ -32,93 +33,57 @@ struct OverviewView: View {
                     } else {
                         // 事项选择器
                         VStack(spacing: 8) {
-                            if isItemSelectorExpanded {
-                                // 展开状态
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 12) {
-                                        ForEach(items) { item in
-                                            Button {
-                                                withAnimation(.spring(response: 0.3)) {
-                                                    selectedItemId = item.persistentModelID
-                                                    isItemSelectorExpanded = false
-                                                }
-                                            } label: {
-                                                VStack(spacing: 6) {
-                                                    ItemIconView(
-                                                        icon: item.icon,
-                                                        size: 24,
-                                                        color: selectedItemId == item.persistentModelID ? .blue : .gray
-                                                    )
-                                                    Text(item.name)
-                                                        .font(.subheadline)
-                                                        .foregroundColor(selectedItemId == item.persistentModelID ? .blue : .primary)
-                                                }
-                                                .frame(width: 80, height: 80)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(selectedItemId == item.persistentModelID ? 
-                                                            Color.blue.opacity(0.1) : 
-                                                            Color(.systemBackground))
-                                                        .shadow(color: .black.opacity(0.1), radius: 5)
-                                                )
-                                            }
-                                            .buttonStyle(.plain)
-                                            .transition(.scale.combined(with: .opacity))
-                                        }
-                                        
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(items) { item in
                                         Button {
-                                            showingAddItem = true
+                                            withAnimation(.spring(response: 0.3)) {
+                                                selectedItemId = item.persistentModelID
+                                            }
                                         } label: {
                                             VStack(spacing: 6) {
-                                                Image(systemName: "plus.circle.fill")
-                                                    .font(.system(size: 24))
-                                                    .foregroundColor(.blue)
-                                                Text("添加事项")
+                                                ItemIconView(
+                                                    icon: item.icon,
+                                                    size: 24,
+                                                    color: selectedItemId == item.persistentModelID ? .blue : .gray
+                                                )
+                                                Text(item.name)
                                                     .font(.subheadline)
-                                                    .foregroundColor(.blue)
+                                                    .foregroundColor(selectedItemId == item.persistentModelID ? .blue : .primary)
                                             }
                                             .frame(width: 80, height: 80)
                                             .background(
                                                 RoundedRectangle(cornerRadius: 12)
-                                                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                                                    .background(Color.blue.opacity(0.05))
+                                                    .fill(selectedItemId == item.persistentModelID ? 
+                                                        Color.blue.opacity(0.1) : 
+                                                        Color(.systemBackground))
+                                                    .shadow(color: .black.opacity(0.1), radius: 5)
                                             )
                                         }
                                         .buttonStyle(.plain)
-                                        .transition(.scale.combined(with: .opacity))
                                     }
-                                    .padding(.horizontal)
-                                }
-                                .transition(.move(edge: .top).combined(with: .opacity))
-                            } else {
-                                // 收起状态
-                                if let item = selectedItem {
+                                    
                                     Button {
-                                        withAnimation(.spring(response: 0.3)) {
-                                            isItemSelectorExpanded = true
-                                        }
+                                        showingAddItem = true
                                     } label: {
-                                        HStack(spacing: 12) {
-                                            ItemIconView(icon: item.icon, size: 24, color: .blue)
-                                            Text(item.name)
-                                                .font(.headline)
-                                                .foregroundColor(.primary)
-                                            Spacer()
-                                            Image(systemName: "chevron.down")
-                                                .foregroundColor(.gray)
-                                                .rotationEffect(.degrees(isItemSelectorExpanded ? 180 : 0))
+                                        VStack(spacing: 6) {
+                                            Image(systemName: "plus.circle.fill")
+                                                .font(.system(size: 24))
+                                                .foregroundColor(.blue)
+                                            Text("添加事项")
+                                                .font(.subheadline)
+                                                .foregroundColor(.blue)
                                         }
-                                        .padding()
-                                        .frame(maxWidth: .infinity)
+                                        .frame(width: 80, height: 80)
                                         .background(
                                             RoundedRectangle(cornerRadius: 12)
-                                                .fill(Color.blue.opacity(0.1))
+                                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                                .background(Color.blue.opacity(0.05))
                                         )
                                     }
                                     .buttonStyle(.plain)
-                                    .padding(.horizontal)
-                                    .transition(.move(edge: .top).combined(with: .opacity))
                                 }
+                                .padding(.horizontal)
                             }
                         }
                         
@@ -149,7 +114,7 @@ struct OverviewView: View {
                                         .frame(height: 180)
                                         .background(
                                             RoundedRectangle(cornerRadius: 16)
-                                                .fill(Color(.systemBackground))
+                                                .fill(Color(.tertiarySystemBackground))
                                                 .shadow(color: .black.opacity(0.1), radius: 10)
                                         )
                                         .padding(.horizontal)
@@ -160,6 +125,7 @@ struct OverviewView: View {
                             VStack(spacing: 16) {
                                 // 心情趋势图表
                                 moodTrendCard(item: item)
+                                    .padding(.horizontal)
                                 
                                 Divider()
                                     .padding(.horizontal)
@@ -169,6 +135,7 @@ struct OverviewView: View {
                                 
                                 // 统计数据卡片
                                 statsOverviewCard(item: item)
+                                    .padding(.horizontal)
                             }
                             // .padding(.horizontal)
                         }
@@ -176,7 +143,7 @@ struct OverviewView: View {
                 }
                 .padding(.vertical)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color(.systemBackground))
             .navigationBarHidden(true)
         }
         .sheet(isPresented: $showingUserProfile) {
@@ -455,6 +422,31 @@ struct OverviewView: View {
                 }
             }
             
+            Divider()
+            
+            // 专注统计
+            VStack(alignment: .leading, spacing: 8) {
+                Text("专注记录")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                HStack(spacing: 20) {
+                    StatItemView(
+                        title: "本周专注",
+                        value: "\(weeklyFocusTime())分钟",
+                        icon: "timer",
+                        color: .purple
+                    )
+                    
+                    StatItemView(
+                        title: "完成次数",
+                        value: "\(weeklyCompletedCount())次",
+                        icon: "checkmark.circle.fill",
+                        color: .green
+                    )
+                }
+            }
+            
             if !diaries.isEmpty {
                 Divider()
                 
@@ -555,6 +547,29 @@ struct OverviewView: View {
         
         return diaries.filter { diary in
             calendar.isDate(diary.createdAt, equalTo: startOfWeek, toGranularity: .weekOfYear)
+        }.count
+    }
+    
+    // 计算本周专注总时长（分钟）
+    private func weeklyFocusTime() -> Int {
+        let calendar = Calendar.current
+        let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date()))!
+        
+        let weeklyRecords = records.filter { record in
+            calendar.isDate(record.startTime, equalTo: startOfWeek, toGranularity: .weekOfYear)
+        }
+        
+        let totalSeconds = weeklyRecords.reduce(0) { $0 + $1.duration }
+        return Int(totalSeconds / 60)
+    }
+    
+    // 计算本周完成的番茄钟次数
+    private func weeklyCompletedCount() -> Int {
+        let calendar = Calendar.current
+        let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date()))!
+        
+        return records.filter { record in
+            calendar.isDate(record.startTime, equalTo: startOfWeek, toGranularity: .weekOfYear) && record.isCompleted
         }.count
     }
     

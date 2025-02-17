@@ -14,7 +14,8 @@ struct BananaHabitApp: App {
             let schema = Schema([
                 Item.self,
                 Mood.self,
-                Diary.self
+                Diary.self,
+                PomodoroRecord.self
             ])
             
             // 创建配置

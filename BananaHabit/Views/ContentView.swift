@@ -18,11 +18,17 @@ struct ContentView: View {
                 }
                 .tag(1)
             
+            PomodoroView()
+                .tabItem {
+                    Label("专注", systemImage: "timer")
+                }
+                .tag(2)
+            
             DiaryListView()
                 .tabItem {
                     Label("日记", systemImage: "book.closed")
                 }
-                .tag(2)
+                .tag(3)
         }
     }
 } 
