@@ -84,7 +84,12 @@ public struct PomodoroLiveActivityView: View {
     private func timeString(from timeInterval: TimeInterval) -> String {
         let minutes = Int(timeInterval) / 60
         let seconds = Int(timeInterval) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
+        
+        if !context.state.showSeconds {
+            return String(format: "%02d:--", minutes)
+        } else {
+            return String(format: "%02d:%02d", minutes, seconds)
+        }
     }
     
     private var timeFormatter: DateFormatter = {

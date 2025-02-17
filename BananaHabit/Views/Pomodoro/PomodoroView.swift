@@ -10,6 +10,7 @@ class PomodoroTimer: ObservableObject {
     @Published var startTime: Date?
     @Published var isCountUp = false
     @Published var elapsedTime: TimeInterval = 0
+    @Published var isBackgrounded = false
     
     private var timer: Timer?
     private var liveActivity: Activity<PomodoroAttributes>?
@@ -18,6 +19,27 @@ class PomodoroTimer: ObservableObject {
     init(duration: TimeInterval = 25 * 60) {
         self.timeRemaining = duration
         self.targetDuration = duration
+        
+        // 监听应用程序状态变化
+        NotificationCenter.default.addObserver(self,
+            selector: #selector(applicationDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil)
+        
+        NotificationCenter.default.addObserver(self,
+            selector: #selector(applicationWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil)
+    }
+    
+    @objc private func applicationDidEnterBackground() {
+        isBackgrounded = true
+        updateLiveActivity()
+    }
+    
+    @objc private func applicationWillEnterForeground() {
+        isBackgrounded = false
+        updateLiveActivity()
     }
     
     func startTimer(itemName: String? = nil, itemIcon: String? = nil) {
@@ -102,7 +124,8 @@ class PomodoroTimer: ObservableObject {
             isCountUp: isCountUp,
             elapsedTime: elapsedTime,
             itemName: itemName,
-            itemIcon: itemIcon
+            itemIcon: itemIcon,
+            showSeconds: !isBackgrounded
         )
         
         do {
@@ -125,10 +148,12 @@ class PomodoroTimer: ObservableObject {
                 isCountUp: isCountUp,
                 elapsedTime: elapsedTime,
                 itemName: itemName,
-                itemIcon: itemIcon
+                itemIcon: itemIcon,
+                showSeconds: !isBackgrounded
             )
             
-            await liveActivity?.update(using: contentState)
+            let content = ActivityContent(state: contentState, staleDate: nil)
+            await liveActivity?.update(content)
         }
     }
     
@@ -345,8 +370,10 @@ struct PomodoroView: View {
                 checkForUnfinishedSession()
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
-                if newPhase == .background || newPhase == .inactive {
-                    saveCurrentSession()
+                if newPhase == .background {
+                    pomodoroTimer.isBackgrounded = true
+                } else if newPhase == .active {
+                    pomodoroTimer.isBackgrounded = false
                 }
             }
         }

@@ -10,6 +10,7 @@ struct PomodoroAttributes: ActivityAttributes {
         var elapsedTime: TimeInterval
         var itemName: String?
         var itemIcon: String?
+        var showSeconds: Bool
     }
     
     var targetDuration: TimeInterval

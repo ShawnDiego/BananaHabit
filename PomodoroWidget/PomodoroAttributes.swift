@@ -10,6 +10,7 @@ public struct PomodoroAttributes: ActivityAttributes {
         public var elapsedTime: TimeInterval
         public var itemName: String?
         public var itemIcon: String?
+        public var showSeconds: Bool
         
         public init(
             timeRemaining: TimeInterval,
@@ -18,7 +19,8 @@ public struct PomodoroAttributes: ActivityAttributes {
             isCountUp: Bool,
             elapsedTime: TimeInterval,
             itemName: String? = nil,
-            itemIcon: String? = nil
+            itemIcon: String? = nil,
+            showSeconds: Bool
         ) {
             self.timeRemaining = timeRemaining
             self.progress = progress
@@ -27,6 +29,7 @@ public struct PomodoroAttributes: ActivityAttributes {
             self.elapsedTime = elapsedTime
             self.itemName = itemName
             self.itemIcon = itemIcon
+            self.showSeconds = showSeconds
         }
     }
     
