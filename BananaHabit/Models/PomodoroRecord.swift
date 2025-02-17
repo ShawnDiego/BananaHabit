@@ -10,6 +10,7 @@ final class PomodoroRecord {
     var relatedItem: Item?  // 关联的心情事项
     var note: String?  // 备注
     var isCompleted: Bool  // 是否完成（未中断）
+    var title: String?  // 标题
     
     init(id: UUID = UUID(),
          startTime: Date = Date(),
@@ -17,6 +18,7 @@ final class PomodoroRecord {
          targetDuration: TimeInterval,
          relatedItem: Item? = nil,
          note: String? = nil,
+         title: String? = nil,
          isCompleted: Bool = true) {
         self.id = id
         self.startTime = startTime
@@ -24,6 +26,7 @@ final class PomodoroRecord {
         self.targetDuration = targetDuration
         self.relatedItem = relatedItem
         self.note = note
+        self.title = title
         self.isCompleted = isCompleted
     }
 } 
