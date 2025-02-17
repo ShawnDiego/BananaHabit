@@ -10,5 +10,9 @@
 	<string>需要访问相机以拍摄照片并添加到日记中</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>需要访问照片库以选择照片并添加到日记中</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<true/>
 </dict>
 </plist>

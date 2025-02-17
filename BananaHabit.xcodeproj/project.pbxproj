@@ -6,7 +6,20 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		EDB7FAC32D63369800AFADA0 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDB7FAC22D63369800AFADA0 /* WidgetKit.framework */; };
+		EDB7FAC52D63369800AFADA0 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDB7FAC42D63369800AFADA0 /* SwiftUI.framework */; };
+		EDB7FAD62D63369A00AFADA0 /* PomodoroWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EDB7FAC02D63369800AFADA0 /* PomodoroWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
+		EDB7FAD42D63369A00AFADA0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EDF787F62D2298AF00A2B7CB /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EDB7FABF2D63369800AFADA0;
+			remoteInfo = PomodoroWidgetExtension;
+		};
 		EDF788132D2298B100A2B7CB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = EDF787F62D2298AF00A2B7CB /* Project object */;
@@ -23,13 +36,38 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		EDB7FADB2D63369A00AFADA0 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				EDB7FAD62D63369A00AFADA0 /* PomodoroWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		EDB7FAC02D63369800AFADA0 /* PomodoroWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PomodoroWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EDB7FAC22D63369800AFADA0 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		EDB7FAC42D63369800AFADA0 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		EDB7FAE02D633DB900AFADA0 /* PomodoroWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PomodoroWidgetExtension.entitlements; sourceTree = "<group>"; };
 		EDF787FE2D2298AF00A2B7CB /* BananaHabit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BananaHabit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EDF788122D2298B100A2B7CB /* BananaHabitTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BananaHabitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EDF7881C2D2298B100A2B7CB /* BananaHabitUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BananaHabitUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		EDB7FADA2D63369A00AFADA0 /* Exceptions for "PomodoroWidget" folder in "PomodoroWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = EDB7FABF2D63369800AFADA0 /* PomodoroWidgetExtension */;
+		};
 		EDF788242D2298B100A2B7CB /* Exceptions for "BananaHabit" folder in "BananaHabit" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -40,6 +78,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		EDB7FAC62D63369800AFADA0 /* PomodoroWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EDB7FADA2D63369A00AFADA0 /* Exceptions for "PomodoroWidget" folder in "PomodoroWidgetExtension" target */,
+			);
+			path = PomodoroWidget;
+			sourceTree = "<group>";
+		};
 		EDF788002D2298AF00A2B7CB /* BananaHabit */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -61,6 +107,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		EDB7FABD2D63369800AFADA0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EDB7FAC52D63369800AFADA0 /* SwiftUI.framework in Frameworks */,
+				EDB7FAC32D63369800AFADA0 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EDF787FB2D2298AF00A2B7CB /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -85,12 +140,24 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		EDB7FAC12D63369800AFADA0 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				EDB7FAC22D63369800AFADA0 /* WidgetKit.framework */,
+				EDB7FAC42D63369800AFADA0 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		EDF787F52D2298AF00A2B7CB = {
 			isa = PBXGroup;
 			children = (
+				EDB7FAE02D633DB900AFADA0 /* PomodoroWidgetExtension.entitlements */,
 				EDF788002D2298AF00A2B7CB /* BananaHabit */,
 				EDF788152D2298B100A2B7CB /* BananaHabitTests */,
 				EDF7881F2D2298B100A2B7CB /* BananaHabitUITests */,
+				EDB7FAC62D63369800AFADA0 /* PomodoroWidget */,
+				EDB7FAC12D63369800AFADA0 /* Frameworks */,
 				EDF787FF2D2298AF00A2B7CB /* Products */,
 			);
 			sourceTree = "<group>";
@@ -101,6 +168,7 @@
 				EDF787FE2D2298AF00A2B7CB /* BananaHabit.app */,
 				EDF788122D2298B100A2B7CB /* BananaHabitTests.xctest */,
 				EDF7881C2D2298B100A2B7CB /* BananaHabitUITests.xctest */,
+				EDB7FAC02D63369800AFADA0 /* PomodoroWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -108,6 +176,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		EDB7FABF2D63369800AFADA0 /* PomodoroWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EDB7FAD72D63369A00AFADA0 /* Build configuration list for PBXNativeTarget "PomodoroWidgetExtension" */;
+			buildPhases = (
+				EDB7FABC2D63369800AFADA0 /* Sources */,
+				EDB7FABD2D63369800AFADA0 /* Frameworks */,
+				EDB7FABE2D63369800AFADA0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				EDB7FAC62D63369800AFADA0 /* PomodoroWidget */,
+			);
+			name = PomodoroWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = PomodoroWidgetExtension;
+			productReference = EDB7FAC02D63369800AFADA0 /* PomodoroWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		EDF787FD2D2298AF00A2B7CB /* BananaHabit */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = EDF788252D2298B100A2B7CB /* Build configuration list for PBXNativeTarget "BananaHabit" */;
@@ -115,10 +205,12 @@
 				EDF787FA2D2298AF00A2B7CB /* Sources */,
 				EDF787FB2D2298AF00A2B7CB /* Frameworks */,
 				EDF787FC2D2298AF00A2B7CB /* Resources */,
+				EDB7FADB2D63369A00AFADA0 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				EDB7FAD52D63369A00AFADA0 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				EDF788002D2298AF00A2B7CB /* BananaHabit */,
@@ -186,6 +278,9 @@
 				LastSwiftUpdateCheck = 1620;
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
+					EDB7FABF2D63369800AFADA0 = {
+						CreatedOnToolsVersion = 16.2;
+					};
 					EDF787FD2D2298AF00A2B7CB = {
 						CreatedOnToolsVersion = 16.2;
 					};
@@ -217,11 +312,19 @@
 				EDF787FD2D2298AF00A2B7CB /* BananaHabit */,
 				EDF788112D2298B100A2B7CB /* BananaHabitTests */,
 				EDF7881B2D2298B100A2B7CB /* BananaHabitUITests */,
+				EDB7FABF2D63369800AFADA0 /* PomodoroWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		EDB7FABE2D63369800AFADA0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EDF787FC2D2298AF00A2B7CB /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -246,6 +349,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		EDB7FABC2D63369800AFADA0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EDF787FA2D2298AF00A2B7CB /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -270,6 +380,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		EDB7FAD52D63369A00AFADA0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EDB7FABF2D63369800AFADA0 /* PomodoroWidgetExtension */;
+			targetProxy = EDB7FAD42D63369A00AFADA0 /* PBXContainerItemProxy */;
+		};
 		EDF788142D2298B100A2B7CB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = EDF787FD2D2298AF00A2B7CB /* BananaHabit */;
@@ -283,6 +398,69 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		EDB7FAD82D63369A00AFADA0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = PomodoroWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = N9X59A9RBT;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PomodoroWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PomodoroWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Diego.BananaHabit.PomodoroWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		EDB7FAD92D63369A00AFADA0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = PomodoroWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = N9X59A9RBT;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PomodoroWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PomodoroWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Diego.BananaHabit.PomodoroWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		EDF788262D2298B100A2B7CB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -580,6 +758,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		EDB7FAD72D63369A00AFADA0 /* Build configuration list for PBXNativeTarget "PomodoroWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EDB7FAD82D63369A00AFADA0 /* Debug */,
+				EDB7FAD92D63369A00AFADA0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		EDF787F92D2298AF00A2B7CB /* Build configuration list for PBXProject "BananaHabit" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

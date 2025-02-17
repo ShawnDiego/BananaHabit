@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import ActivityKit
 
 @MainActor
 class PomodoroTimer: ObservableObject {
@@ -11,6 +12,7 @@ class PomodoroTimer: ObservableObject {
     @Published var elapsedTime: TimeInterval = 0
     
     private var timer: Timer?
+    private var liveActivity: Activity<PomodoroAttributes>?
     var onComplete: (() -> Void)?
     
     init(duration: TimeInterval = 25 * 60) {
@@ -18,7 +20,7 @@ class PomodoroTimer: ObservableObject {
         self.targetDuration = duration
     }
     
-    func startTimer() {
+    func startTimer(itemName: String? = nil, itemIcon: String? = nil) {
         if startTime == nil {
             startTime = Date()
         }
@@ -31,17 +33,22 @@ class PomodoroTimer: ObservableObject {
             } else {
                 if self.timeRemaining > 0 {
                     self.timeRemaining -= 1
+                    self.updateLiveActivity(itemName: itemName, itemIcon: itemIcon)
                 } else {
                     self.completeTimer()
                 }
             }
         }
+        
+        // 启动实时活动
+        startLiveActivity(itemName: itemName, itemIcon: itemIcon)
     }
     
     func pauseTimer() {
         timer?.invalidate()
         timer = nil
         isRunning = false
+        updateLiveActivity()
     }
     
     func resetTimer() {
@@ -49,6 +56,7 @@ class PomodoroTimer: ObservableObject {
         timeRemaining = targetDuration
         elapsedTime = 0
         startTime = nil
+        endLiveActivity()
     }
     
     func setDuration(_ duration: TimeInterval) {
@@ -73,7 +81,61 @@ class PomodoroTimer: ObservableObject {
     
     private func completeTimer() {
         pauseTimer()
+        endLiveActivity()
         onComplete?()
+    }
+    
+    // MARK: - Live Activity Methods
+    
+    private func startLiveActivity(itemName: String? = nil, itemIcon: String? = nil) {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        
+        let attributes = PomodoroAttributes(
+            targetDuration: targetDuration,
+            startTime: startTime ?? Date()
+        )
+        
+        let contentState = PomodoroAttributes.ContentState(
+            timeRemaining: timeRemaining,
+            progress: 1 - (timeRemaining / targetDuration),
+            isRunning: isRunning,
+            isCountUp: isCountUp,
+            elapsedTime: elapsedTime,
+            itemName: itemName,
+            itemIcon: itemIcon
+        )
+        
+        do {
+            liveActivity = try Activity.request(
+                attributes: attributes,
+                contentState: contentState,
+                pushType: nil
+            )
+        } catch {
+            print("Error starting live activity: \(error)")
+        }
+    }
+    
+    private func updateLiveActivity(itemName: String? = nil, itemIcon: String? = nil) {
+        Task {
+            let contentState = PomodoroAttributes.ContentState(
+                timeRemaining: timeRemaining,
+                progress: 1 - (timeRemaining / targetDuration),
+                isRunning: isRunning,
+                isCountUp: isCountUp,
+                elapsedTime: elapsedTime,
+                itemName: itemName,
+                itemIcon: itemIcon
+            )
+            
+            await liveActivity?.update(using: contentState)
+        }
+    }
+    
+    private func endLiveActivity() {
+        Task {
+            await liveActivity?.end(dismissalPolicy: .immediate)
+        }
     }
 }
 
@@ -187,7 +249,10 @@ struct PomodoroView: View {
                                 if pomodoroTimer.isRunning {
                                     pomodoroTimer.pauseTimer()
                                 } else {
-                                    pomodoroTimer.startTimer()
+                                    pomodoroTimer.startTimer(
+                                        itemName: selectedItem?.name,
+                                        itemIcon: selectedItem?.icon
+                                    )
                                 }
                             } label: {
                                 Image(systemName: pomodoroTimer.isRunning ? "pause.fill" : "play.fill")
