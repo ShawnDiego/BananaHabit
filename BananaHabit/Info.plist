@@ -3,7 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>UIBackgroundModes</key>
-	<array/>
+	<array>
+		<string>processing</string>
+	</array>
 	<key>NSFaceIDUsageDescription</key>
 	<string>需要使用Face ID来保护您的隐私数据安全</string>
 	<key>NSCameraUsageDescription</key>
@@ -14,5 +16,9 @@
 	<true/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
 	<true/>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.bananahabit.pomodorotimer</string>
+	</array>
 </dict>
 </plist>

@@ -4,11 +4,13 @@ import Charts
 
 struct OverviewView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.selectedTab) private var selectedTab
     @Query private var items: [Item]
     @Query private var diaries: [Diary]
     @Query(sort: \PomodoroRecord.startTime, order: .reverse) private var records: [PomodoroRecord]
     @State private var showingAddItem = false
     @EnvironmentObject private var userVM: UserViewModel
+    @EnvironmentObject private var pomodoroTimer: PomodoroTimer
     @State private var showingUserProfile = false
     @State private var showingMoodInput = false
     @State private var selectedItemId: PersistentIdentifier?
@@ -27,6 +29,39 @@ struct OverviewView: View {
                 VStack(spacing: 20) {
                     // 用户信息头部
                     userProfileHeader
+                    
+                    // 当前番茄钟状态
+                    if pomodoroTimer.isRunning {
+                        Button {
+                            selectedTab.wrappedValue = 2  // 切换到专注标签页
+                        } label: {
+                            HStack(spacing: 16) {
+                                
+                                Text(pomodoroTimer.isCountUp ?
+                                        timeString(from: pomodoroTimer.elapsedTime) :
+                                        timeString(from: pomodoroTimer.timeRemaining))
+                                    .font(.system(size: 48, weight: .bold, design: .rounded)) // 增大字体
+                                    .foregroundColor(pomodoroTimer.isCountUp ? Color.green : Color.blue)
+                                    
+                                
+                                VStack(alignment: .leading) {
+                                    Text("正在进行的番茄钟")
+                                        .font(.headline)
+                                    Text(pomodoroTimer.isCountUp ? "正计时" : "倒计时")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Spacer()
+                            }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(pomodoroTimer.isCountUp ? Color.green.opacity(0.1) : Color.blue.opacity(0.1))
+                            )
+                            .padding(.horizontal)
+                        }
+                    }
                     
                     if items.isEmpty {
                         emptyStateView
@@ -1042,6 +1077,13 @@ struct TodayMoodSummaryView: View {
         default: return .gray.opacity(0.8)
         }
     }
+}
+
+// 辅助函数
+private func timeString(from timeInterval: TimeInterval) -> String {
+    let minutes = Int(timeInterval) / 60
+    let seconds = Int(timeInterval) % 60
+    return String(format: "%02d:%02d", minutes, seconds)
 }
 
 #Preview {

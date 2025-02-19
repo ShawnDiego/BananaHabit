@@ -12,6 +12,8 @@ final class Diary {
     var images: [Data]
     var relatedItem: Item?
     var selectedDate: Date?
+    var isLocked: Bool = false 
+    var password: String?
     
     init(id: UUID = UUID(), 
          title: String? = nil,
@@ -20,7 +22,9 @@ final class Diary {
          modifiedAt: Date = Date(),
          images: [Data] = [],
          relatedItem: Item? = nil,
-         selectedDate: Date? = nil) {
+         selectedDate: Date? = nil,
+         isLocked: Bool = false,
+         password: String? = nil) {
         self.id = id
         self.title = title
         self.content = content
@@ -29,5 +33,7 @@ final class Diary {
         self.images = images
         self.relatedItem = relatedItem
         self.selectedDate = selectedDate
+        self.isLocked = isLocked
+        self.password = password
     }
 } 

@@ -37,7 +37,7 @@ public struct PomodoroLiveActivityView: View {
                     }
                 }
                 
-                HStack(spacing: 20) {
+                HStack() {
                     // 进度环
                     ZStack {
                         Circle()
@@ -64,7 +64,7 @@ public struct PomodoroLiveActivityView: View {
                             .monospacedDigit()
                     }
                     .frame(width: 80, height: 80)
-                    
+                    Spacer()
                     // 状态和控制
                     VStack(alignment: .leading, spacing: 4) {
                         Text(context.state.isRunning ? "正在进行" : "已暂停")
@@ -85,11 +85,9 @@ public struct PomodoroLiveActivityView: View {
         let minutes = Int(timeInterval) / 60
         let seconds = Int(timeInterval) % 60
         
-        if !context.state.showSeconds {
-            return String(format: "%02d:--", minutes)
-        } else {
-            return String(format: "%02d:%02d", minutes, seconds)
-        }
+
+        return String(format: "%02d:%02d", minutes, seconds)
+        
     }
     
     private var timeFormatter: DateFormatter = {

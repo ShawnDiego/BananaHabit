@@ -55,6 +55,9 @@ struct DiaryDetailView: View {
     @State private var showingCameraAlert = false
     @State private var cameraError: String = ""
     @State private var showingDeleteAlert = false
+    @State private var showingPasswordView = false
+    @State private var isUnlocked = false
+    @State private var isSettingPassword = false
     
     init(diary: Diary?) {
         self.existingDiary = diary
@@ -63,6 +66,7 @@ struct DiaryDetailView: View {
         _selectedItem = State(initialValue: diary?.relatedItem)
         _selectedDate = State(initialValue: diary?.selectedDate)
         _title = State(initialValue: diary?.title ?? "")
+        _isUnlocked = State(initialValue: !(diary?.isLocked ?? false))
         
         // 初始化日记内容
         if let contentData = newDiary.content.data(using: .utf8),
@@ -76,28 +80,69 @@ struct DiaryDetailView: View {
     }
     
     var body: some View {
-        DiaryFormView(
-            diary: $diary,
-            diaryContent: $diaryContent,
-            title: $title,
-            selectedItem: $selectedItem,
-            selectedDate: $selectedDate,
-            selectedPhotos: $selectedPhotos,
-            showingItemPicker: $showingItemPicker,
-            showingDatePicker: $showingDatePicker,
-            showingPhotoPicker: $showingPhotoPicker,
-            items: items
-        )
+        Group {
+            if diary.isLocked && !isUnlocked {
+                // 显示加密状态
+                VStack(spacing: 20) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 50))
+                        .foregroundColor(.secondary)
+                    
+                    Text("此日记已加密")
+                        .font(.headline)
+                    
+                    Button("输入密码查看") {
+                        showingPasswordView = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(.systemGroupedBackground))
+            } else {
+                DiaryFormView(
+                    diary: $diary,
+                    diaryContent: $diaryContent,
+                    title: $title,
+                    selectedItem: $selectedItem,
+                    selectedDate: $selectedDate,
+                    selectedPhotos: $selectedPhotos,
+                    showingItemPicker: $showingItemPicker,
+                    showingDatePicker: $showingDatePicker,
+                    showingPhotoPicker: $showingPhotoPicker,
+                    items: items
+                )
+            }
+        }
         .navigationTitle(title.isEmpty ? "新日记" : title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if existingDiary != nil {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(role: .destructive) {
-                        showingDeleteAlert = true
+                    Menu {
+                        if diary.isLocked {
+                            Button(role: .destructive) {
+                                diary.isLocked = false
+                                diary.password = nil
+                                isUnlocked = true
+                            } label: {
+                                Label("解除加密", systemImage: "lock.open")
+                            }
+                        } else {
+                            Button {
+                                isSettingPassword = true
+                                showingPasswordView = true
+                            } label: {
+                                Label("加密日记", systemImage: "lock")
+                            }
+                        }
+                        
+                        Button(role: .destructive) {
+                            showingDeleteAlert = true
+                        } label: {
+                            Label("删除日记", systemImage: "trash")
+                        }
                     } label: {
-                        Image(systemName: "trash")
-                            .foregroundColor(.red)
+                        Image(systemName: "ellipsis.circle")
                     }
                 }
             }
@@ -119,6 +164,15 @@ struct DiaryDetailView: View {
         }
         .sheet(isPresented: $showingItemPicker) {
             ItemPickerSheet(selectedItem: $selectedItem, items: items, isPresented: $showingItemPicker)
+        }
+        .sheet(isPresented: $showingPasswordView) {
+            DiaryPasswordView(
+                diary: $diary,
+                isSettingPassword: isSettingPassword,
+                onSuccess: {
+                    isUnlocked = true
+                }
+            )
         }
         .onChange(of: diaryContent) { _, newContent in
             if let jsonData = try? JSONEncoder().encode(newContent),
@@ -895,4 +949,29 @@ struct ImageEditorView: View {
                 .presentationDetents([.medium])
         }
     }
-} 
+}
+
+//struct DiaryPasswordView: View {
+//    @Binding var diary: Diary
+//    @Binding var isSettingPassword: Bool
+//    let onSuccess: () -> Void
+//    
+//    var body: some View {
+//        VStack(spacing: 20) {
+//            Text("输入密码")
+//                .font(.headline)
+//            
+//            TextField("密码", text: $diary.password)
+//                .textFieldStyle(RoundedBorderTextFieldStyle())
+//            
+//            Button("确定") {
+//                if let password = diary.password, !password.isEmpty {
+//                    diary.isLocked = true
+//                    isSettingPassword = false
+//                    onSuccess()
+//                }
+//            }
+//        }
+//        .padding()
+//    }
+//} 

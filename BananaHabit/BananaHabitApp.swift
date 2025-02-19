@@ -1,11 +1,14 @@
 import SwiftUI
 import SwiftData
+import CoreData
+import BackgroundTasks
 
 @main
 struct BananaHabitApp: App {
     let container: ModelContainer
     @StateObject private var userViewModel = UserViewModel()
     @StateObject private var authManager = AuthenticationManager()
+    @StateObject private var pomodoroTimer = PomodoroTimer()
     @Environment(\.scenePhase) private var scenePhase
     
     init() {
@@ -24,18 +27,7 @@ struct BananaHabitApp: App {
                 isStoredInMemoryOnly: false
             )
             
-            // 尝试创建容器
-            do {
-                container = try ModelContainer(for: schema, configurations: modelConfiguration)
-            } catch {
-                print("创建容器失败，正在清理旧数据: \(error)")
-                // 删除应用数据
-                let url = URL.applicationSupportDirectory
-                    .appending(path: "default.store")
-                try? FileManager.default.removeItem(at: url)
-                // 重新创建容器
-                container = try ModelContainer(for: schema, configurations: modelConfiguration)
-            }
+            container = try ModelContainer(for: schema, configurations: modelConfiguration)
             
         } catch {
             fatalError("无法创建 ModelContainer: \(error)")
@@ -48,6 +40,7 @@ struct BananaHabitApp: App {
                 if authManager.isAuthenticated {
                     ContentView()
                         .environmentObject(userViewModel)
+                        .environmentObject(pomodoroTimer)
                         .modelContainer(container)
                 } else {
                     LockScreenView()

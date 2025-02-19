@@ -246,41 +246,55 @@ private struct DiaryRowView: View {
             
             // 右侧内容区
             VStack(alignment: .leading, spacing: 8) {
-                if let title = diary.title, !title.isEmpty {
-                    HStack(alignment: .center) {
-                        Text(title)
+                HStack(alignment: .center) {
+                    if let title = diary.title, !title.isEmpty {
+                        Text(diary.isLocked ? "加密日记" : title)
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.primary)
-                        Spacer()
-                        Text(timeString)
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
                     }
+                    
+                    if diary.isLocked {
+                        Image(systemName: "lock.fill")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 12))
+                    }
+                    
+                    Spacer()
+                    Text(timeString)
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
                 }
                 
-                if let preview = getContentPreview(diary.content), !preview.isEmpty {
-                    HStack(alignment: .top, spacing: 8) {
-                        Text(preview)
-                            .font(.system(size: 15))
-                            .foregroundColor(diary.title == nil ? .primary : .secondary)
-                            .lineLimit(3)
-                            .lineSpacing(2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        
-                        if diary.title == nil {
+                if !diary.isLocked {
+                    if let preview = getContentPreview(diary.content), !preview.isEmpty {
+                        HStack(alignment: .top, spacing: 8) {
+                            Text(preview)
+                                .font(.system(size: 15))
+                                .foregroundColor(diary.title == nil ? .primary : .secondary)
+                                .lineLimit(3)
+                                .lineSpacing(2)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            
+                            if diary.title == nil {
+                                Text(timeString)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    } else if diary.title == nil {
+                        // 当标题和预览都为空时，显示时间
+                        HStack {
+                            Spacer()
                             Text(timeString)
                                 .font(.system(size: 14))
                                 .foregroundColor(.secondary)
                         }
                     }
-                } else if diary.title == nil {
-                    // 当标题和预览都为空时，显示时间
-                    HStack {
-                        Spacer()
-                        Text(timeString)
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                    }
+                } else {
+                    Text("内容已加密")
+                        .font(.system(size: 15))
+                        .foregroundColor(.secondary)
+                        .padding(.vertical, 4)
                 }
                 
                 // 关联信息
@@ -305,7 +319,7 @@ private struct DiaryRowView: View {
                 }
             }
             .padding(.vertical, 2)
-            .frame(minHeight: 24) // 添加最小高度确保空内容时的对齐
+            .frame(minHeight: 24)
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
