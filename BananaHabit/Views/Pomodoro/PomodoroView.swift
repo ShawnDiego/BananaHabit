@@ -134,6 +134,7 @@ class PomodoroTimer: ObservableObject {
             guard let self = self else { return }
             if self.isCountUp {
                 self.elapsedTime += 1
+                self.updateLiveActivity(itemName: itemName, itemIcon: itemIcon)
             } else {
                 if self.timeRemaining > 0 {
                     self.timeRemaining -= 1
@@ -201,7 +202,7 @@ class PomodoroTimer: ObservableObject {
         
         let contentState = PomodoroAttributes.ContentState(
             timeRemaining: timeRemaining,
-            progress: 1 - (timeRemaining / targetDuration),
+            progress: isCountUp ? 1.0 : 1 - (timeRemaining / targetDuration),  // 正计时显示满进度
             isRunning: isRunning,
             isCountUp: isCountUp,
             elapsedTime: elapsedTime,
@@ -225,7 +226,7 @@ class PomodoroTimer: ObservableObject {
         Task {
             let contentState = PomodoroAttributes.ContentState(
                 timeRemaining: timeRemaining,
-                progress: 1 - (timeRemaining / targetDuration),
+                progress: isCountUp ? 1.0 : 1 - (timeRemaining / targetDuration),  // 正计时显示满进度
                 isRunning: isRunning,
                 isCountUp: isCountUp,
                 elapsedTime: elapsedTime,

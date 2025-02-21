@@ -38,43 +38,45 @@ public struct PomodoroLiveActivityView: View {
                 }
                 
                 HStack() {
-                    // 进度环
+                    // 时间显示和进度背景
                     ZStack {
-                        Circle()
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 8)
+                        // 背景进度条
+                        GeometryReader { geometry in
+                            Rectangle()
+                                .fill(context.state.isCountUp ? Color.green.opacity(0.1) : Color.blue.opacity(0.1))
+                                .frame(width: geometry.size.width * (context.state.isCountUp ? 
+                                    min(CGFloat(context.state.elapsedTime / 3600), 1.0) : 
+                                    context.state.progress))
+                        }
                         
-                        Circle()
-                            .trim(from: 0, to: context.state.isCountUp ?
-                                min(CGFloat(context.state.elapsedTime / 3600), 1.0) :
-                                context.state.progress)
-                            .stroke(
-                                context.state.isCountUp ? Color.green : Color.blue,
-                                style: StrokeStyle(
-                                    lineWidth: 8,
-                                    lineCap: .round
-                                )
-                            )
-                            .rotationEffect(.degrees(-90))
-                            .animation(.linear(duration: 1), value: context.state.isCountUp ? context.state.elapsedTime : context.state.timeRemaining)
-                        
-                        Text(context.state.isCountUp ?
-                            timeString(from: context.state.elapsedTime) :
-                            timeString(from: context.state.timeRemaining))
-                            .font(.system(.title2, design: .rounded))
-                            .monospacedDigit()
+                        HStack {
+                            // 大字体时间显示
+                            Text(context.state.isCountUp ?
+                                timeString(from: context.state.elapsedTime) :
+                                timeString(from: context.state.timeRemaining))
+                                .font(.system(size: 42, weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundColor(context.state.isCountUp ? .green : .blue)
+                                .padding(.leading, 20)
+                            
+                            Spacer()
+                            
+                            // 状态和控制
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text(context.state.isRunning ? "正在进行" : "已暂停")
+                                    .font(.headline)
+                                    .foregroundColor(context.state.isRunning ? .blue : .secondary)
+                                
+                                Text("开始时间: \(timeFormatter.string(from: context.attributes.startTime))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.trailing, 20)
+                        }
                     }
-                    .frame(width: 80, height: 80)
-                    Spacer()
-                    // 状态和控制
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(context.state.isRunning ? "正在进行" : "已暂停")
-                            .font(.headline)
-                            .foregroundColor(context.state.isRunning ? .blue : .secondary)
-                        
-                        Text("开始时间: \(timeFormatter.string(from: context.attributes.startTime))")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                    .frame(height: 80)
+                    .background(Color(.systemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 15))
                 }
             }
             .padding()
