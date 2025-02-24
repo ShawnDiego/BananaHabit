@@ -18,7 +18,8 @@ class PomodoroTimer: ObservableObject {
     
     private var timer: Timer?
     private var liveActivity: Activity<PomodoroAttributes>?
-    private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
+    private var backgroundTaskIdentifier: UIBackgroundTaskIdentifier = .invalid
+    private var lastUpdateTime: Date = Date()
     var onComplete: (() -> Void)?
     
     init(duration: TimeInterval = 25 * 60) {
@@ -43,6 +44,11 @@ class PomodoroTimer: ObservableObject {
             selector: #selector(applicationWillEnterForeground),
             name: UIApplication.willEnterForegroundNotification,
             object: nil)
+            
+        NotificationCenter.default.addObserver(self,
+            selector: #selector(applicationWillTerminate),
+            name: UIApplication.willTerminateNotification,
+            object: nil)
     }
     
     // 添加静态方法处理后台任务
@@ -57,18 +63,9 @@ class PomodoroTimer: ObservableObject {
             task.setTaskCompleted(success: false)
         }
         
-        // 更新计时器状态
+        // 在后台任务中只更新 Live Activity
         if shared.isRunning {
-            if shared.isCountUp {
-                shared.elapsedTime += 1
-            } else {
-                if shared.timeRemaining > 0 {
-                    shared.timeRemaining -= 1
-                    shared.updateLiveActivity()
-                } else {
-                    shared.completeTimer()
-                }
-            }
+            shared.updateLiveActivity()
         }
         
         // 完成任务并安排下一个任务
@@ -76,38 +73,79 @@ class PomodoroTimer: ObservableObject {
         shared.scheduleBackgroundTask()
     }
     
+    @objc private func applicationWillTerminate() {
+        if isRunning {
+            // 保存当前状态
+            saveCurrentSession()
+            UserDefaults.standard.synchronize()
+        }
+    }
+    
     @objc private func applicationDidEnterBackground() {
         isBackgrounded = true
-        updateLiveActivity()
+        lastUpdateTime = Date()
         
-        // 开始后台任务
         if isRunning {
+            // 保存当前状态
+            saveCurrentSession()
+            UserDefaults.standard.synchronize()
+            
             startBackgroundTask()
             scheduleBackgroundTask()
         }
+        
+        updateLiveActivity()
     }
     
     @objc private func applicationWillEnterForeground() {
         isBackgrounded = false
-        updateLiveActivity()
         
-        // 结束后台任务
-        if backgroundTask != .invalid {
-            UIApplication.shared.endBackgroundTask(backgroundTask)
-            backgroundTask = .invalid
+        if isRunning {
+            // 计算后台经过的时间
+            let timePassed = Date().timeIntervalSince(lastUpdateTime)
+            lastUpdateTime = Date()
+            
+            if isCountUp {
+                elapsedTime += timePassed
+            } else {
+                timeRemaining = max(0, timeRemaining - timePassed)
+                if timeRemaining == 0 {
+                    completeTimer()
+                }
+            }
+            
+            // 重新启动前台计时器
+            timer?.invalidate()
+            startTimer()
         }
+        
+        updateLiveActivity()
+        endBackgroundTask()
     }
     
     private func startBackgroundTask() {
-        backgroundTask = UIApplication.shared.beginBackgroundTask { [weak self] in
+        // 结束之前的后台任务（如果存在）
+        endBackgroundTask()
+        
+        // 开始新的后台任务
+        backgroundTaskIdentifier = UIApplication.shared.beginBackgroundTask { [weak self] in
             self?.endBackgroundTask()
+        }
+        
+        // 在后台模式下，我们只更新 Live Activity，不更新计时器状态
+        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
+            guard let self = self, self.isRunning else {
+                timer.invalidate()
+                return
+            }
+            self.updateLiveActivity()
         }
     }
     
     private func endBackgroundTask() {
-        if backgroundTask != .invalid {
-            UIApplication.shared.endBackgroundTask(backgroundTask)
-            backgroundTask = .invalid
+        if backgroundTaskIdentifier != .invalid {
+            UIApplication.shared.endBackgroundTask(backgroundTaskIdentifier)
+            backgroundTaskIdentifier = .invalid
         }
     }
     
@@ -128,19 +166,25 @@ class PomodoroTimer: ObservableObject {
         if startTime == nil {
             startTime = Date()
         }
+        lastUpdateTime = Date()
         isRunning = true
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             guard let self = self else { return }
+            let now = Date()
+            let timePassed = now.timeIntervalSince(self.lastUpdateTime)
+            self.lastUpdateTime = now
+            
             if self.isCountUp {
-                self.elapsedTime += 1
+                self.elapsedTime += timePassed
                 self.updateLiveActivity(itemName: itemName, itemIcon: itemIcon)
             } else {
                 if self.timeRemaining > 0 {
-                    self.timeRemaining -= 1
+                    self.timeRemaining = max(0, self.timeRemaining - timePassed)
                     self.updateLiveActivity(itemName: itemName, itemIcon: itemIcon)
-                } else {
-                    self.completeTimer()
+                    if self.timeRemaining == 0 {
+                        self.completeTimer()
+                    }
                 }
             }
         }
@@ -195,30 +239,44 @@ class PomodoroTimer: ObservableObject {
     private func startLiveActivity(itemName: String? = nil, itemIcon: String? = nil) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         
-        let attributes = PomodoroAttributes(
-            targetDuration: targetDuration,
-            startTime: startTime ?? Date()
-        )
-        
-        let contentState = PomodoroAttributes.ContentState(
-            timeRemaining: timeRemaining,
-            progress: isCountUp ? 1.0 : 1 - (timeRemaining / targetDuration),  // 正计时显示满进度
-            isRunning: isRunning,
-            isCountUp: isCountUp,
-            elapsedTime: elapsedTime,
-            itemName: itemName,
-            itemIcon: itemIcon,
-            showSeconds: !isBackgrounded
-        )
-        
-        do {
-            liveActivity = try Activity.request(
-                attributes: attributes,
-                contentState: contentState,
-                pushType: nil
+        // 先结束现有的活动
+        Task {
+            // 结束当前的活动
+            if let currentActivity = liveActivity {
+                await currentActivity.end(dismissalPolicy: .immediate)
+            }
+            
+            // 获取所有正在运行的同类型活动并结束它们
+            for activity in Activity<PomodoroAttributes>.activities {
+                await activity.end(dismissalPolicy: .immediate)
+            }
+            
+            // 创建新的活动
+            let attributes = PomodoroAttributes(
+                targetDuration: targetDuration,
+                startTime: startTime ?? Date()
             )
-        } catch {
-            print("Error starting live activity: \(error)")
+            
+            let contentState = PomodoroAttributes.ContentState(
+                timeRemaining: timeRemaining,
+                progress: isCountUp ? 1.0 : 1 - (timeRemaining / targetDuration),
+                isRunning: isRunning,
+                isCountUp: isCountUp,
+                elapsedTime: elapsedTime,
+                itemName: itemName,
+                itemIcon: itemIcon,
+                showSeconds: !isBackgrounded
+            )
+            
+            do {
+                liveActivity = try Activity.request(
+                    attributes: attributes,
+                    contentState: contentState,
+                    pushType: nil
+                )
+            } catch {
+                print("Error starting live activity: \(error)")
+            }
         }
     }
     
@@ -226,7 +284,7 @@ class PomodoroTimer: ObservableObject {
         Task {
             let contentState = PomodoroAttributes.ContentState(
                 timeRemaining: timeRemaining,
-                progress: isCountUp ? 1.0 : 1 - (timeRemaining / targetDuration),  // 正计时显示满进度
+                progress: isCountUp ? 1.0 : 1 - (timeRemaining / targetDuration),
                 isRunning: isRunning,
                 isCountUp: isCountUp,
                 elapsedTime: elapsedTime,
@@ -236,17 +294,238 @@ class PomodoroTimer: ObservableObject {
             )
             
             let content = ActivityContent(state: contentState, staleDate: nil)
+            
+            // 更新当前活动
             await liveActivity?.update(content)
+            
+            // 更新所有正在运行的同类型活动
+            for activity in Activity<PomodoroAttributes>.activities {
+                await activity.update(content)
+            }
         }
     }
     
     private func endLiveActivity() {
         Task {
+            // 结束当前活动
             await liveActivity?.end(dismissalPolicy: .immediate)
+            liveActivity = nil
+            
+            // 结束所有正在运行的同类型活动
+            for activity in Activity<PomodoroAttributes>.activities {
+                await activity.end(dismissalPolicy: .immediate)
+            }
+        }
+    }
+    
+    private func saveCurrentSession() {
+        let sessionData: [String: Any] = [
+            "timeRemaining": timeRemaining,
+            "targetDuration": targetDuration,
+            "startTime": startTime as Any,
+            "lastActiveTime": Date(),
+            "isCountUp": isCountUp,
+            "elapsedTime": elapsedTime,
+            "isRunning": isRunning
+        ]
+        UserDefaults.standard.set(sessionData, forKey: "unfinishedPomodoroSession")
+    }
+    
+    func clearSavedSession() {
+        UserDefaults.standard.removeObject(forKey: "unfinishedPomodoroSession")
+        // 不再调用resetTimer，只清除保存的数据
+    }
+    
+    func checkForUnfinishedSession() -> Bool {
+        // 首先检查是否有保存的会话数据
+        guard let sessionData = UserDefaults.standard.dictionary(forKey: "unfinishedPomodoroSession") else {
+            return false
+        }
+        
+        // 检查是否之前在运行
+        guard let isRunning = sessionData["isRunning"] as? Bool, isRunning else {
+            clearSavedSession()
+            return false
+        }
+        
+        // 检查上次活动时间
+        guard let lastActiveTime = sessionData["lastActiveTime"] as? Date else {
+            clearSavedSession()
+            return false
+        }
+        
+        // 检查是否在合理的时间范围内（例如1小时内）
+        let timePassed = Date().timeIntervalSince(lastActiveTime)
+        if timePassed > 3600 {
+            clearSavedSession()
+            return false
+        }
+        
+        // 恢复状态并自动启动计时器
+        restoreSessionAndStart(from: sessionData)
+        return false
+    }
+    
+    private func restoreSessionAndStart(from sessionData: [String: Any]) {
+        restoreSessionWithoutStarting(from: sessionData)
+        
+        // 如果时间还没用完，启动计时器
+        if (isCountUp || timeRemaining > 0) {
+            startTimer()
+        }
+        
+        // 移除保存的会话数据
+        UserDefaults.standard.removeObject(forKey: "unfinishedPomodoroSession")
+    }
+    
+    private func restoreSessionWithoutStarting(from sessionData: [String: Any]) {
+        guard let targetDuration = sessionData["targetDuration"] as? TimeInterval,
+              let startTime = sessionData["startTime"] as? Date,
+              let lastActiveTime = sessionData["lastActiveTime"] as? Date,
+              let isCountUp = sessionData["isCountUp"] as? Bool else {
+            return
+        }
+        
+        self.targetDuration = targetDuration
+        self.startTime = startTime
+        self.isCountUp = isCountUp
+        
+        let timePassed = Date().timeIntervalSince(lastActiveTime)
+        
+        if isCountUp {
+            if let elapsedTime = sessionData["elapsedTime"] as? TimeInterval {
+                self.elapsedTime = elapsedTime + timePassed
+            }
+        } else {
+            if let timeRemaining = sessionData["timeRemaining"] as? TimeInterval {
+                self.timeRemaining = max(0, timeRemaining - timePassed)
+            }
         }
     }
 }
 
+// MARK: - 时间选择器视图
+struct TimeOptionsView: View {
+    @EnvironmentObject private var pomodoroTimer: PomodoroTimer
+    @Binding var showingCustomTimeSheet: Bool
+    
+    let timeOptions: [(String, TimeInterval)] = [
+        ("15分钟", 15 * 60),
+        ("25分钟", 25 * 60),
+        ("30分钟", 30 * 60),
+        ("45分钟", 45 * 60),
+        ("60分钟", 60 * 60),
+        ("自定义", 0)
+    ]
+    
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(timeOptions, id: \.1) { option in
+                    Button {
+                        if option.1 == 0 {
+                            showingCustomTimeSheet = true
+                        } else {
+                            pomodoroTimer.setDuration(option.1)
+                        }
+                    } label: {
+                        Text(option.0)
+                            .font(.headline)
+                            .foregroundColor(pomodoroTimer.targetDuration == option.1 ? .white : .primary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(pomodoroTimer.targetDuration == option.1 ? Color.blue : Color(.tertiarySystemBackground))
+                            )
+                    }
+                    .disabled(pomodoroTimer.isRunning)
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+
+// MARK: - 自定义时间表单
+struct CustomTimeSheet: View {
+    @EnvironmentObject private var pomodoroTimer: PomodoroTimer
+    @Binding var isPresented: Bool
+    @Binding var customTime: Date
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section {
+                    VStack(spacing: 16) {
+                        HStack {
+                            Text("小时")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text("分钟")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 36)
+                        
+                        DatePicker("选择时长",
+                                 selection: $customTime,
+                                 in: Calendar.current.date(bySettingHour: 0, minute: 0, second: 0, of: Date())!...Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: Date())!,
+                                 displayedComponents: [.hourAndMinute])
+                            .datePickerStyle(.wheel)
+                            .labelsHidden()
+                            .frame(maxWidth: .infinity)
+                        
+                        HStack {
+                            Spacer()
+                            let components = Calendar.current.dateComponents([.hour, .minute], from: customTime)
+                            if let hours = components.hour, let minutes = components.minute {
+                                if hours > 0 {
+                                    Text("\(hours)小时\(minutes)分钟")
+                                } else {
+                                    Text("\(minutes)分钟")
+                                }
+                            }
+                            Spacer()
+                        }
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                    }
+                    .padding(.vertical, 8)
+                } header: {
+                    Text("选择时长")
+                } footer: {
+                    Text("可选择1分钟到24小时的时长")
+                }
+            }
+            .navigationTitle("自定义时间")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("取消") {
+                        isPresented = false
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("确定") {
+                        let components = Calendar.current.dateComponents([.hour, .minute], from: customTime)
+                        if let hours = components.hour, let minutes = components.minute {
+                            let totalMinutes = hours * 60 + minutes
+                            if totalMinutes > 0 {
+                                pomodoroTimer.setDuration(TimeInterval(totalMinutes * 60))
+                                isPresented = false
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+}
+
+// MARK: - 主视图
 struct PomodoroView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
@@ -263,154 +542,20 @@ struct PomodoroView: View {
     @State private var showingCustomTimeSheet = false
     @State private var customTime = Calendar.current.date(bySettingHour: 0, minute: 25, second: 0, of: Date()) ?? Date()
     
-    // 时间选项
-    let timeOptions: [(String, TimeInterval)] = [
-        ("15分钟", 15 * 60),
-        ("25分钟", 25 * 60),
-        ("30分钟", 30 * 60),
-        ("45分钟", 45 * 60),
-        ("60分钟", 60 * 60),
-        ("自定义", 0)  // 自定义选项
-    ]
-    
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
                     // 时间选择器（仅在倒计时模式显示）
                     if !pomodoroTimer.isCountUp {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ForEach(timeOptions, id: \.1) { option in
-                                    Button {
-                                        if option.1 == 0 {
-                                            showingCustomTimeSheet = true
-                                        } else {
-                                            pomodoroTimer.setDuration(option.1)
-                                        }
-                                    } label: {
-                                        Text(option.0)
-                                            .font(.headline)
-                                            .foregroundColor(pomodoroTimer.targetDuration == option.1 ? .white : .primary)
-                                            .padding(.horizontal, 16)
-                                            .padding(.vertical, 8)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 20)
-                                                    .fill(pomodoroTimer.targetDuration == option.1 ? Color.blue : Color(.tertiarySystemBackground))
-                                            )
-                                    }
-                                    .disabled(pomodoroTimer.isRunning)
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
+                        TimeOptionsView(showingCustomTimeSheet: $showingCustomTimeSheet)
                     }
                     
                     // 计时器显示
-                    VStack(spacing: 32) {
-                        ZStack {
-                            // 进度环
-                            Circle()
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 20)
-                                .frame(width: 280, height: 280)
-                            
-                            Circle()
-                                .trim(from: 0, to: pomodoroTimer.isCountUp ?
-                                    1.0 : // 正计时显示满圆
-                                    CGFloat(1 - (pomodoroTimer.timeRemaining / pomodoroTimer.targetDuration)))
-                                .stroke(
-                                    pomodoroTimer.isCountUp ? Color.green : Color.blue,
-                                    style: StrokeStyle(
-                                        lineWidth: 20,
-                                        lineCap: .round
-                                    )
-                                )
-                                .frame(width: 280, height: 280)
-                                .rotationEffect(.degrees(-90))
-                                .animation(.linear(duration: 1), value: pomodoroTimer.isCountUp ? pomodoroTimer.elapsedTime : pomodoroTimer.timeRemaining)
-                            
-                            VStack(spacing: 8) {
-                                Text(pomodoroTimer.isCountUp ? 
-                                    timeString(from: pomodoroTimer.elapsedTime) :
-                                    timeString(from: pomodoroTimer.timeRemaining))
-                                    .font(.system(size: 60, weight: .medium, design: .rounded))
-                                    .monospacedDigit()
-                                
-                                if let item = selectedItem {
-                                    HStack {
-                                        Image(systemName: item.icon)
-                                        Text(item.name)
-                                    }
-                                    .font(.headline)
-                                    .foregroundColor(.blue)
-                                }
-                            }
-                        }
-                        
-                        // 控制按钮
-                        HStack(spacing: 40) {
-                            Button {
-                                pomodoroTimer.resetTimer()
-                            } label: {
-                                Image(systemName: "arrow.counterclockwise")
-                                    .font(.title2)
-                                    .foregroundColor(.primary)
-                                    .frame(width: 60, height: 60)
-                                    .background(Color(.tertiarySystemBackground))
-                                    .clipShape(Circle())
-                            }
-                            
-                            Button {
-                                if pomodoroTimer.isRunning {
-                                    pomodoroTimer.pauseTimer()
-                                } else {
-                                    pomodoroTimer.startTimer(
-                                        itemName: selectedItem?.name,
-                                        itemIcon: selectedItem?.icon
-                                    )
-                                }
-                            } label: {
-                                Image(systemName: pomodoroTimer.isRunning ? "pause.fill" : "play.fill")
-                                    .font(.title)
-                                    .foregroundColor(.white)
-                                    .frame(width: 80, height: 80)
-                                    .background(Color.blue)
-                                    .clipShape(Circle())
-                            }
-                            
-                            Button {
-                                showingItemPicker = true
-                            } label: {
-                                Image(systemName: "tag")
-                                    .font(.title2)
-                                    .foregroundColor(.primary)
-                                    .frame(width: 60, height: 60)
-                                    .background(Color(.tertiarySystemBackground))
-                                    .clipShape(Circle())
-                            }
-                        }
-                    }
-                    .padding(.vertical, 20)
-                    .padding(.horizontal)
-                    .padding(.horizontal)
+                    TimerDisplayView(selectedItem: $selectedItem, showingItemPicker: $showingItemPicker)
                     
                     // 今日记录
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("今日记录")
-                            .font(.headline)
-                            .padding(.horizontal)
-                        
-                        if let todayRecords = getTodayRecords() {
-                            ForEach(todayRecords) { record in
-                                PomodoroRecordRow(record: record)
-                            }
-                        } else {
-                            Text("今天还没有专注记录")
-                                .foregroundColor(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .padding()
-                        }
-                    }
+                    TodayRecordsView(records: getTodayRecords())
                 }
                 .padding(.vertical)
             }
@@ -434,100 +579,42 @@ struct PomodoroView: View {
                 ItemPickerSheet(selectedItem: $selectedItem, items: items, isPresented: $showingItemPicker)
             }
             .sheet(isPresented: $showingCustomTimeSheet) {
-                NavigationView {
-                    Form {
-                        Section {
-                            VStack(spacing: 16) {
-                                HStack {
-                                    Text("小时")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text("分钟")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                }
-                                .padding(.horizontal, 36)
-                                
-                                DatePicker("选择时长",
-                                         selection: $customTime,
-                                         in: Calendar.current.date(bySettingHour: 0, minute: 0, second: 0, of: Date())!...Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: Date())!,
-                                         displayedComponents: [.hourAndMinute])
-                                    .datePickerStyle(.wheel)
-                                    .labelsHidden()
-                                    .frame(maxWidth: .infinity)
-                                
-                                HStack {
-                                    Spacer()
-                                    let components = Calendar.current.dateComponents([.hour, .minute], from: customTime)
-                                    if let hours = components.hour, let minutes = components.minute {
-                                        if hours > 0 {
-                                            Text("\(hours)小时\(minutes)分钟")
-                                        } else {
-                                            Text("\(minutes)分钟")
-                                        }
-                                    }
-                                    Spacer()
-                                }
-                                .font(.headline)
-                                .foregroundColor(.blue)
-                            }
-                            .padding(.vertical, 8)
-                        } header: {
-                            Text("选择时长")
-                        } footer: {
-                            Text("可选择1分钟到24小时的时长")
-                        }
-                    }
-                    .navigationTitle("自定义时间")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("取消") {
-                                showingCustomTimeSheet = false
-                            }
-                        }
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("确定") {
-                                let components = Calendar.current.dateComponents([.hour, .minute], from: customTime)
-                                if let hours = components.hour, let minutes = components.minute {
-                                    let totalMinutes = hours * 60 + minutes
-                                    if totalMinutes > 0 {
-                                        pomodoroTimer.setDuration(TimeInterval(totalMinutes * 60))
-                                        showingCustomTimeSheet = false
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                .presentationDetents([.medium])
+                CustomTimeSheet(isPresented: $showingCustomTimeSheet, customTime: $customTime)
             }
             .alert("专注完成", isPresented: $showingCompletionAlert) {
-                TextField("添加备注", text: $note)
-                TextField("添加标题", text: $title)
-                Button("保存") {
+                Button("确定") {
                     saveRecord()
-                    note = ""
-                    title = ""
                 }
-                Button("取消", role: .cancel) {}
             } message: {
                 Text("太棒了！你完成了一次专注。")
             }
             .alert("继续上次的专注？", isPresented: $showingResumeAlert) {
                 Button("继续") {
-                    resumeLastSession()
+                    pomodoroTimer.startTimer(
+                        itemName: selectedItem?.name,
+                        itemIcon: selectedItem?.icon
+                    )
                 }
                 Button("放弃", role: .destructive) {
-                    clearSavedSession()
+                    pomodoroTimer.clearSavedSession()
                 }
             } message: {
-                Text("发现未完成的专注任务")
+                VStack(spacing: 8) {
+                    if pomodoroTimer.isCountUp {
+                        Text("上次计时已进行 \(Int(pomodoroTimer.elapsedTime / 60)) 分钟")
+                    } else {
+                        Text("上次倒计时还剩 \(Int(pomodoroTimer.timeRemaining / 60)) 分钟")
+                    }
+                    Text("是否继续？")
+                }
             }
             .onAppear {
                 pomodoroTimer.onComplete = { showingCompletionAlert = true }
-                checkForUnfinishedSession()
+                
+                // 检查未完成的会话
+                if pomodoroTimer.checkForUnfinishedSession() {
+                    showingResumeAlert = true
+                }
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 if newPhase == .background {
@@ -536,15 +623,16 @@ struct PomodoroView: View {
                 } else if newPhase == .active {
                     pomodoroTimer.isBackgrounded = false
                     pomodoroTimer.updateLiveActivity(itemName: selectedItem?.name, itemIcon: selectedItem?.icon)
+                    
+                    // 检查是否有未完成的会话
+                    if !showingResumeAlert && !showingCompletionAlert {
+                        if pomodoroTimer.checkForUnfinishedSession() {
+                            showingResumeAlert = true
+                        }
+                    }
                 }
             }
         }
-    }
-    
-    private func timeString(from timeInterval: TimeInterval) -> String {
-        let minutes = Int(timeInterval) / 60
-        let seconds = Int(timeInterval) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
     }
     
     private func saveRecord() {
@@ -555,8 +643,8 @@ struct PomodoroView: View {
             duration: pomodoroTimer.targetDuration - pomodoroTimer.timeRemaining,
             targetDuration: pomodoroTimer.targetDuration,
             relatedItem: selectedItem,
-            note: note.isEmpty ? nil : note,
-            title: title.isEmpty ? nil : title,
+            note: nil,
+            title: nil,
             isCompleted: pomodoroTimer.timeRemaining == 0
         )
         
@@ -572,76 +660,130 @@ struct PomodoroView: View {
         let todayRecords = records.filter { calendar.isDate($0.startTime, inSameDayAs: today) }
         return todayRecords.isEmpty ? nil : todayRecords
     }
+}
+
+// MARK: - 计时器显示视图
+struct TimerDisplayView: View {
+    @EnvironmentObject private var pomodoroTimer: PomodoroTimer
+    @Binding var selectedItem: Item?
+    @Binding var showingItemPicker: Bool
     
-    private func checkForUnfinishedSession() {
-        guard let sessionData = UserDefaults.standard.dictionary(forKey: "unfinishedPomodoroSession"),
-              let targetDuration = sessionData["targetDuration"] as? TimeInterval,
-              let startTime = sessionData["startTime"] as? Date,
-              let lastActiveTime = sessionData["lastActiveTime"] as? Date,
-              let isCountUp = sessionData["isCountUp"] as? Bool else {
-            return
-        }
-        
-        // 检查是否在合理的时间范围内（例如1小时内）
-        let timePassed = Date().timeIntervalSince(lastActiveTime)
-        if timePassed > 3600 {
-            clearSavedSession()
-            return
-        }
-        
-        if let itemIdString = sessionData["selectedItemId"] as? String {
-            selectedItem = items.first { String(describing: $0.persistentModelID) == itemIdString }
-        }
-        
-        if isCountUp {
-            if let elapsedTime = sessionData["elapsedTime"] as? TimeInterval {
-                pomodoroTimer.elapsedTime = elapsedTime + timePassed
+    var body: some View {
+        VStack(spacing: 32) {
+            ZStack {
+                // 进度环
+                Circle()
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 20)
+                    .frame(width: 280, height: 280)
+                
+                Circle()
+                    .trim(from: 0, to: pomodoroTimer.isCountUp ?
+                        1.0 : // 正计时显示满圆
+                        CGFloat(1 - (pomodoroTimer.timeRemaining / pomodoroTimer.targetDuration)))
+                    .stroke(
+                        pomodoroTimer.isCountUp ? Color.green : Color.blue,
+                        style: StrokeStyle(
+                            lineWidth: 20,
+                            lineCap: .round
+                        )
+                    )
+                    .frame(width: 280, height: 280)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.linear(duration: 1), value: pomodoroTimer.isCountUp ? pomodoroTimer.elapsedTime : pomodoroTimer.timeRemaining)
+                
+                VStack(spacing: 8) {
+                    Text(pomodoroTimer.isCountUp ? 
+                        timeString(from: pomodoroTimer.elapsedTime) :
+                        timeString(from: pomodoroTimer.timeRemaining))
+                        .font(.system(size: 60, weight: .medium, design: .rounded))
+                        .monospacedDigit()
+                    
+                    if let item = selectedItem {
+                        HStack {
+                            Image(systemName: item.icon)
+                            Text(item.name)
+                        }
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                    }
+                }
             }
-            pomodoroTimer.isCountUp = true
-        } else {
-            if let timeRemaining = sessionData["timeRemaining"] as? TimeInterval {
-                // 调整剩余时间，考虑经过的时间
-                let adjustedTimeRemaining = max(0, timeRemaining - timePassed)
-                pomodoroTimer.timeRemaining = adjustedTimeRemaining
+            
+            // 控制按钮
+            HStack(spacing: 40) {
+                Button {
+                    pomodoroTimer.resetTimer()
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.title2)
+                        .foregroundColor(.primary)
+                        .frame(width: 60, height: 60)
+                        .background(Color(.tertiarySystemBackground))
+                        .clipShape(Circle())
+                }
+                
+                Button {
+                    if pomodoroTimer.isRunning {
+                        pomodoroTimer.pauseTimer()
+                    } else {
+                        pomodoroTimer.startTimer(
+                            itemName: selectedItem?.name,
+                            itemIcon: selectedItem?.icon
+                        )
+                    }
+                } label: {
+                    Image(systemName: pomodoroTimer.isRunning ? "pause.fill" : "play.fill")
+                        .font(.title)
+                        .foregroundColor(.white)
+                        .frame(width: 80, height: 80)
+                        .background(Color.blue)
+                        .clipShape(Circle())
+                }
+                
+                Button {
+                    showingItemPicker = true
+                } label: {
+                    Image(systemName: "tag")
+                        .font(.title2)
+                        .foregroundColor(.primary)
+                        .frame(width: 60, height: 60)
+                        .background(Color(.tertiarySystemBackground))
+                        .clipShape(Circle())
+                }
             }
         }
-        
-        pomodoroTimer.targetDuration = targetDuration
-        pomodoroTimer.startTime = startTime
-        
-        if !isCountUp && pomodoroTimer.timeRemaining > 0 {
-            showingResumeAlert = true
-        } else if isCountUp {
-            showingResumeAlert = true
-        } else {
-            // 如果是倒计时且时间已经用完，直接显示完成提示
-            showingCompletionAlert = true
+        .padding(.vertical, 20)
+        .padding(.horizontal)
+    }
+    
+    private func timeString(from timeInterval: TimeInterval) -> String {
+        let minutes = Int(timeInterval) / 60
+        let seconds = Int(timeInterval) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+}
+
+// MARK: - 今日记录视图
+struct TodayRecordsView: View {
+    let records: [PomodoroRecord]?
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("今日记录")
+                .font(.headline)
+                .padding(.horizontal)
+            
+            if let records = records {
+                ForEach(records) { record in
+                    PomodoroRecordRow(record: record)
+                }
+            } else {
+                Text("今天还没有专注记录")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            }
         }
-    }
-    
-    private func saveCurrentSession() {
-        if pomodoroTimer.isRunning {
-            let sessionData: [String: Any] = [
-                "timeRemaining": pomodoroTimer.timeRemaining,
-                "targetDuration": pomodoroTimer.targetDuration,
-                "startTime": pomodoroTimer.startTime as Any,
-                "selectedItemId": String(describing: selectedItem?.persistentModelID) as Any,
-                "wasTerminated": true,
-                "lastActiveTime": Date(),
-                "isCountUp": pomodoroTimer.isCountUp,
-                "elapsedTime": pomodoroTimer.elapsedTime
-            ]
-            UserDefaults.standard.set(sessionData, forKey: "unfinishedPomodoroSession")
-        }
-    }
-    
-    private func resumeLastSession() {
-        pomodoroTimer.startTimer()
-    }
-    
-    private func clearSavedSession() {
-        UserDefaults.standard.removeObject(forKey: "unfinishedPomodoroSession")
-        pomodoroTimer.resetTimer()
     }
 }
 
