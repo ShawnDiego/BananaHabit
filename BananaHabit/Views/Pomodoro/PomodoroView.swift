@@ -132,12 +132,26 @@ class PomodoroTimer: ObservableObject {
             self?.endBackgroundTask()
         }
         
-        // 在后台模式下，我们只更新 Live Activity，不更新计时器状态
+        // 在后台模式下更新计时器状态和Live Activity
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
             guard let self = self, self.isRunning else {
                 timer.invalidate()
                 return
             }
+            
+            let now = Date()
+            let timePassed = now.timeIntervalSince(self.lastUpdateTime)
+            self.lastUpdateTime = now
+            
+            if self.isCountUp {
+                self.elapsedTime += timePassed
+            } else {
+                self.timeRemaining = max(0, self.timeRemaining - timePassed)
+                if self.timeRemaining == 0 {
+                    self.completeTimer()
+                }
+            }
+            
             self.updateLiveActivity()
         }
     }
@@ -157,6 +171,10 @@ class PomodoroTimer: ObservableObject {
         
         do {
             try BGTaskScheduler.shared.submit(request)
+            // 立即安排下一个任务
+            DispatchQueue.main.asyncAfter(deadline: .now() + 60) {
+                self.scheduleBackgroundTask()
+            }
         } catch {
             print("Could not schedule background task: \(error)")
         }
@@ -293,7 +311,12 @@ class PomodoroTimer: ObservableObject {
                 showSeconds: !isBackgrounded
             )
             
-            let content = ActivityContent(state: contentState, staleDate: nil)
+            let content = ActivityContent(
+                state: contentState,
+                staleDate: isBackgrounded ? 
+                    Date(timeIntervalSinceNow: 5) : // 后台模式下5秒后过期
+                    nil // 前台模式下不过期
+            )
             
             // 更新当前活动
             await liveActivity?.update(content)
@@ -301,6 +324,14 @@ class PomodoroTimer: ObservableObject {
             // 更新所有正在运行的同类型活动
             for activity in Activity<PomodoroAttributes>.activities {
                 await activity.update(content)
+            }
+            
+            // 如果在后台模式下，确保活动不会过期
+            if isBackgrounded && isRunning {
+                Task {
+                    try? await Task.sleep(nanoseconds: 4 * NSEC_PER_SEC) // 4秒后
+                    await self.updateLiveActivity(itemName: itemName, itemIcon: itemIcon)
+                }
             }
         }
     }
