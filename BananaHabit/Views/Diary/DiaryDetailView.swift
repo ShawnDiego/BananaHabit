@@ -116,8 +116,8 @@ struct DiaryDetailView: View {
         .navigationTitle(title.isEmpty ? "新日记" : title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if existingDiary != nil {
-                ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if existingDiary != nil {
                     Menu {
                         if diary.isLocked {
                             Button(role: .destructive) {
@@ -143,6 +143,10 @@ struct DiaryDetailView: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
+                    }
+                } else {
+                    Button("完成") {
+                        dismiss()
                     }
                 }
             }
@@ -242,7 +246,7 @@ private struct DiaryFormView: View {
                         .onChange(of: title) { _, newValue in
                             diary.title = newValue.isEmpty ? nil : newValue
                         }
-                        .font(.title3)
+                        .font(.title2)
                         .foregroundColor(.primary)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
@@ -540,6 +544,7 @@ fileprivate struct RichTextEditor: UIViewRepresentable {
         let photoButton = UIBarButtonItem(image: UIImage(systemName: "photo"), style: .plain, target: context.coordinator, action: #selector(Coordinator.openPhotoPicker))
         let fileButton = UIBarButtonItem(image: UIImage(systemName: "folder"), style: .plain, target: context.coordinator, action: #selector(Coordinator.openFilePicker))
         let flexSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        let doneButton = UIBarButtonItem(title: "完成", style: .done, target: context.coordinator, action: #selector(Coordinator.dismissKeyboard))
         
         toolbar.items = [
             flexSpace,
@@ -548,7 +553,8 @@ fileprivate struct RichTextEditor: UIViewRepresentable {
             photoButton,
             flexSpace,
             fileButton,
-            flexSpace
+            flexSpace,
+            doneButton
         ]
         textView.inputAccessoryView = toolbar
         
@@ -624,6 +630,10 @@ fileprivate struct RichTextEditor: UIViewRepresentable {
         
         @objc func openFilePicker() {
             NotificationCenter.default.post(name: NSNotification.Name("OpenFilePicker"), object: nil)
+        }
+        
+        @objc func dismissKeyboard() {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
         
         func textViewDidChange(_ textView: UITextView) {
