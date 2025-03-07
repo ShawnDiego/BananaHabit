@@ -239,28 +239,29 @@ private struct DiaryFormView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack() {
                 // 标题和内容区域
                 VStack(alignment: .leading, spacing: 12) {
-                    TextField("标题（可选）", text: $title)
+                    TextField("标题", text: $title)
                         .onChange(of: title) { _, newValue in
                             diary.title = newValue.isEmpty ? nil : newValue
                         }
-                        .font(.title2)
+                        .font(.title3)
+                        .bold()
                         .foregroundColor(.primary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 8)
+                        .padding(.top, 10)
                     
                     // 添加分隔线
                     Rectangle()
                         .fill(Color.gray.opacity(0.2))
                         .frame(height: 1)
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 4)
                     
                     RichTextEditor(content: $diaryContent, selectedRange: $selectedRange)
                         .frame(minHeight: UIScreen.main.bounds.height * 0.4)
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, 8)
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 12)
@@ -363,7 +364,7 @@ private struct DiaryFormView: View {
                 }
                 .padding(.horizontal, 20)
             }
-            .padding(.vertical, 16)
+            .padding(.vertical, 8)
         }
         .background(
             Color(.secondarySystemBackground)
