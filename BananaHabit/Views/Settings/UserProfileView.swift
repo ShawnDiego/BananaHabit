@@ -2,12 +2,12 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import AuthenticationServices
+import UniformTypeIdentifiers
 
 struct UserProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var userVM: UserViewModel
-    @StateObject private var cloudManager = CloudManager.shared
     @StateObject private var exportManager = DataExportManager.shared
     
     @State private var showingDeleteAlert = false
@@ -16,7 +16,6 @@ struct UserProfileView: View {
     @State private var showingNameEdit = false
     @State private var editingName = ""
     @State private var showingNotificationSettings = false
-    @State private var showingRestoreAlert = false
     @State private var showingDocumentPicker = false
     @State private var showingShareSheet = false
     @State private var exportURL: URL?
@@ -120,42 +119,6 @@ struct UserProfileView: View {
                             Image(systemName: "lock.shield")
                         }
                     }
-                    
-                    Button {
-                        backupData()
-                    } label: {
-                        HStack {
-                            Text("备份到iCloud")
-                            Spacer()
-                            if cloudManager.isSyncing {
-                                ProgressView()
-                            } else {
-                                Image(systemName: "icloud.and.arrow.up")
-                            }
-                        }
-                    }
-                    .disabled(cloudManager.isSyncing)
-                    
-                    Button {
-                        showingRestoreAlert = true
-                    } label: {
-                        HStack {
-                            Text("从iCloud恢复")
-                            Spacer()
-                            if cloudManager.isSyncing {
-                                ProgressView()
-                            } else {
-                                Image(systemName: "icloud.and.arrow.down")
-                            }
-                        }
-                    }
-                    .disabled(cloudManager.isSyncing)
-                    
-                    if let lastSync = cloudManager.lastSyncDate {
-                        Text("上次同步: \(lastSync.formatted(.relative(presentation: .named)))")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
                 }
                 
                 Section("数据管理") {
@@ -249,29 +212,6 @@ struct UserProfileView: View {
             .sheet(isPresented: $showingNotificationSettings) {
                 NotificationSettingsView()
             }
-            .alert("备份成功", isPresented: $cloudManager.showSuccessAlert) {
-                Button("确定", role: .cancel) { }
-            } message: {
-                Text("数据已成功备份到iCloud")
-            }
-            .alert("备份失败", isPresented: .init(
-                get: { cloudManager.syncError != nil },
-                set: { if !$0 { cloudManager.syncError = nil } }
-            )) {
-                Button("确定", role: .cancel) { }
-            } message: {
-                if let error = cloudManager.syncError {
-                    Text(error)
-                }
-            }
-            .alert("确认恢复", isPresented: $showingRestoreAlert) {
-                Button("取消", role: .cancel) { }
-                Button("确认恢复", role: .destructive) {
-                    restoreData()
-                }
-            } message: {
-                Text("从iCloud恢复数据将覆盖当前数据，确定要继续吗？")
-            }
             .alert("导入失败", isPresented: .init(
                 get: { exportManager.importError != nil },
                 set: { if !$0 { exportManager.importError = nil } }
@@ -299,74 +239,6 @@ struct UserProfileView: View {
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
-            }
-        }
-    }
-    
-    private func backupData() {
-        do {
-            let descriptor = FetchDescriptor<Item>()
-            let items = try modelContext.fetch(descriptor)
-            cloudManager.backupData(items: items, user: userVM.currentUser)
-        } catch {
-            cloudManager.syncError = error.localizedDescription
-        }
-    }
-    
-    private func restoreData() {
-        cloudManager.restoreData { items, user in
-            if let items = items {
-                do {
-                    // 获取现有数据
-                    let descriptor = FetchDescriptor<Item>()
-                    let existingItems = try self.modelContext.fetch(descriptor)
-                    
-                    // 创建映射以快速查找现有项目
-                    let existingItemMap = Dictionary(
-                        grouping: existingItems,
-                        by: { "\($0.name)_\($0.createdDate.timeIntervalSince1970)" }
-                    )
-                    
-                    // 处理每个从云端恢复的项目
-                    for item in items {
-                        let itemIdentifier = "\(item.name)_\(item.createdDate.timeIntervalSince1970)"
-                        
-                        if let existingItem = existingItemMap[itemIdentifier]?.first {
-                            // 如果项目已存在，更新其心情数据
-                            let existingMoodMap = Dictionary(
-                                grouping: existingItem.moods,
-                                by: { "\($0.date.timeIntervalSince1970)_\($0.value)" }
-                            )
-                            
-                            // 添加或更新心情数据
-                            for mood in item.moods {
-                                let moodIdentifier = "\(mood.date.timeIntervalSince1970)_\(mood.value)"
-                                if existingMoodMap[moodIdentifier] == nil {
-                                    // 如果心情记录不存在，添加到现有项目
-                                    existingItem.moods.append(
-                                        Mood(date: mood.date, value: mood.value, note: mood.note, item: existingItem)
-                                    )
-                                }
-                            }
-                        } else {
-                            // 如果项目不存在，直接添加
-                            self.modelContext.insert(item)
-                        }
-                    }
-                    
-                    // 保存更改
-                    try self.modelContext.save()
-                    
-                    // 如果有用户数据，更新用户信息
-                    if let user = user {
-                        self.userVM.currentUser = user
-                        self.userVM.saveUserState()
-                    }
-                    
-                    self.cloudManager.showSuccessAlert = true
-                } catch {
-                    self.cloudManager.syncError = error.localizedDescription
-                }
             }
         }
     }
