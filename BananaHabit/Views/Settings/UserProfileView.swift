@@ -245,9 +245,18 @@ struct UserProfileView: View {
     
     private func exportData() {
         do {
-            let descriptor = FetchDescriptor<Item>()
-            let items = try modelContext.fetch(descriptor)
-            if let url = exportManager.exportData(items) {
+            // 获取所有数据类型
+            let itemDescriptor = FetchDescriptor<Item>()
+            let items = try modelContext.fetch(itemDescriptor)
+            
+            let diaryDescriptor = FetchDescriptor<Diary>()
+            let diaries = try modelContext.fetch(diaryDescriptor)
+            
+            let recordDescriptor = FetchDescriptor<PomodoroRecord>()
+            let records = try modelContext.fetch(recordDescriptor)
+            
+            // 导出所有数据
+            if let url = exportManager.exportData(items, diaries, records) {
                 exportURL = url
                 showingShareSheet = true
             }
