@@ -20,6 +20,7 @@ struct UserProfileView: View {
     @State private var showingShareSheet = false
     @State private var exportURL: URL?
     @State private var showingSettings = false
+    @State private var showingBackupView = false
     
     var body: some View {
         NavigationView {
@@ -122,6 +123,16 @@ struct UserProfileView: View {
                 }
                 
                 Section("数据管理") {
+                    Button {
+                        showingBackupView = true
+                    } label: {
+                        HStack {
+                            Text("数据备份与恢复")
+                            Spacer()
+                            Image(systemName: "archivebox")
+                        }
+                    }
+
                     Button {
                         exportData()
                     } label: {
@@ -239,6 +250,9 @@ struct UserProfileView: View {
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            .sheet(isPresented: $showingBackupView) {
+                DataBackupView()
             }
         }
     }
