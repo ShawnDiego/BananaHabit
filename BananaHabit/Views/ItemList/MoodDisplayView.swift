@@ -1,5 +1,10 @@
 import SwiftUI
 import SwiftData
+import Observation
+
+// 导入模型
+@preconcurrency import class BananaHabit.Item
+@preconcurrency import class BananaHabit.Mood
 
 struct MoodDisplayView: View {
     @Environment(\.modelContext) private var modelContext
@@ -22,8 +27,10 @@ struct MoodDisplayView: View {
                 
                 Menu {
                     Button(action: { showingEdit = true }) {
-                        Label("编辑", systemImage: "pencil")
+                        Image(systemName: "pencil")
+                            .font(.system(size: 32))
                     }
+                    .buttonStyle(.plain)
                     
                     Button(role: .destructive, action: { showingDeleteAlert = true }) {
                         Label("删除", systemImage: "trash")
@@ -51,6 +58,7 @@ struct MoodDisplayView: View {
         } message: {
             Text("确定要删除这条心情记录吗？")
         }
+        .padding()
     }
     
     private func deleteMood() {
@@ -184,4 +192,21 @@ struct MoodEditView: View {
         default: return .gray
         }
     }
+}
+
+#Preview {
+    let container = try! ModelContainer(for: Item.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    
+    // 创建一个示例事项
+    let item = Item(name: "工作", icon: "briefcase.fill")
+    
+    // 创建一个示例心情记录
+    let mood = Mood(date: Date(), value: 4, note: "今天工作很顺利", item: item)
+    item.moods.append(mood)
+    
+    // 将示例数据添加到容器中
+    container.mainContext.insert(item)
+    
+    return MoodDisplayView(mood: mood)
+        .modelContainer(container)
 }

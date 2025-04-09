@@ -17,7 +17,6 @@ struct MoodDetailView: View {
                     CalendarView(selectedDate: $currentDate, item: item)
                     // 选中日期的心情
                     VStack(alignment: .leading, spacing: 12) {
-                        // 添加标题
                         Text(calendar.isDateInToday(currentDate) ? "今日心情" : formatDate(currentDate))
                             .font(.headline)
                             .frame(maxWidth: .infinity, alignment: .leading)
