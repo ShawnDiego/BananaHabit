@@ -15,6 +15,7 @@ struct MoodDisplayView: View {
                 ForEach(1...5, id: \.self) { value in
                     Image(systemName: value <= mood.value ? "circle.fill" : "circle")
                         .foregroundColor(moodColor(value))
+                        .font(.system(size: 32))
                 }
                 
                 Spacer()

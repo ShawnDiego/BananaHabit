@@ -164,7 +164,21 @@ struct DiaryDetailView: View {
             Text("确定要删除这篇日记吗？此操作无法撤销。")
         }
         .sheet(isPresented: $showingDatePicker) {
-            DatePickerSheet(selectedDate: $selectedDate, isPresented: $showingDatePicker)
+            VStack {
+//                if let item = selectedItem {
+//                    MoodCalendarView(selectedDate: $selectedDate, item: item)
+//                        .padding()
+//                    
+//                    Button("完成") {
+//                        showingDatePicker = false
+//                    }
+//                    .buttonStyle(.borderedProminent)
+//                    .padding(.bottom)
+//                } else {
+                    DatePickerSheet(selectedDate: $selectedDate, isPresented: $showingDatePicker)
+//                }
+            }
+            .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showingItemPicker) {
             ItemPickerSheet(selectedItem: $selectedItem, items: items, isPresented: $showingItemPicker)

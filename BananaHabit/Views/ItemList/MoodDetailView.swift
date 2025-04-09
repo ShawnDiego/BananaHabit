@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import Observation
 
-struct ItemDetailView: View {
+struct MoodDetailView: View {
     @Bindable var item: Item
     @State private var currentDate: Date = Date()
     @State private var shouldRefresh = false
@@ -154,4 +154,37 @@ struct ItemDetailView: View {
         default: return .gray.opacity(0.8)
         }
     }
+}
+
+#Preview {
+    let container = try! ModelContainer(for: Item.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    
+    // 创建一个示例事项
+    let item = Item(name: "工作", icon: "briefcase.fill")
+    
+    // 添加一些示例心情记录
+    let calendar = Calendar.current
+    let today = Date()
+    
+    // 添加今天的心情
+    let todayMood = Mood(date: today, value: 4, note: "今天工作很顺利", item: item)
+    item.moods.append(todayMood)
+    
+    // 添加昨天的心情
+    let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+    let yesterdayMood = Mood(date: yesterday, value: 3, note: "一般般", item: item)
+    item.moods.append(yesterdayMood)
+    
+    // 添加前天的心情
+    let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: today)!
+    let twoDaysAgoMood = Mood(date: twoDaysAgo, value: 5, note: "项目完成了！", item: item)
+    item.moods.append(twoDaysAgoMood)
+    
+    // 将示例数据添加到容器中
+    container.mainContext.insert(item)
+    
+    return NavigationStack {
+        MoodDetailView(item: item)
+    }
+    .modelContainer(container)
 }

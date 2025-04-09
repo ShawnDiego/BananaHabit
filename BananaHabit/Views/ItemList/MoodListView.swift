@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import Charts
 
-struct ItemListView: View {
+struct MoodListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Item.sortOrder) private var items: [Item]
     @State private var showingAddItem = false
@@ -71,7 +71,7 @@ struct ItemListView: View {
                     .frame(minWidth: 200, maxWidth: 250)
                 } detail: {
                     if let item = selectedItem ?? items.first {
-                        ItemDetailView(item: item)
+                        MoodDetailView(item: item)
                     }
                 }
             }
@@ -129,7 +129,7 @@ struct ItemListView: View {
     
     private func itemRow(_ item: Item) -> some View {
         NavigationLink {
-            ItemDetailView(item: item)
+            MoodDetailView(item: item)
         } label: {
             VStack(alignment: .leading, spacing: 8) {
                 Text(item.name)
