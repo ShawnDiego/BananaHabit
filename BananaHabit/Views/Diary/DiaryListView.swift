@@ -28,6 +28,8 @@ struct DiaryListView: View {
     @State private var showingDeleteAlert = false
     @State private var diaryToDelete: Diary?
     @State private var showingAddDiary = false
+    @State private var showingMoodPicker = false
+    @State private var showingSettings = false
     
     var groupedDiaries: [(String, [Diary])] {
         let grouped = Dictionary(grouping: diaries) { diary -> String in
@@ -74,13 +76,31 @@ struct DiaryListView: View {
             .navigationTitle("日记")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingAddDiary = true }) {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 18))
+                    Menu {
+                        Button(action: {
+                            showingAddDiary = true
+                        }) {
+                            Label("写日记", systemImage: "square.and.pencil")
+                        }
+                        
+                        Button(action: {
+                            showingMoodPicker = true
+                        }) {
+                            Label("记录心情", systemImage: "face.smiling")
+                        }
+                        
+                        Button(action: {
+                            showingSettings = true
+                        }) {
+                            Label("设置", systemImage: "gear")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
                 }
             }
         }
+        .navigationViewStyle(StackNavigationViewStyle())
         .sheet(isPresented: $showingAddDiary) {
             NavigationView {
                 DiaryDetailView(diary: nil)

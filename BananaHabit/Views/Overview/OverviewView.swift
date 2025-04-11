@@ -72,6 +72,8 @@ struct OverviewView: View {
             .background(Color(.systemBackground))
             .navigationBarHidden(true)
         }
+        .navigationViewStyle(StackNavigationViewStyle())
+        .background(Color(.systemBackground))
         .sheet(isPresented: $showingUserProfile) {
             if !userVM.isAuthenticated {
                 SignInView()

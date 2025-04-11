@@ -606,60 +606,61 @@ struct PomodoroView: View {
                     .disabled(pomodoroTimer.isRunning)
                 }
             }
-            .sheet(isPresented: $showingItemPicker) {
-                ItemPickerSheet(selectedItem: $selectedItem, items: items, isPresented: $showingItemPicker)
+        }
+        .navigationViewStyle(StackNavigationViewStyle())
+        .sheet(isPresented: $showingItemPicker) {
+            ItemPickerSheet(selectedItem: $selectedItem, items: items, isPresented: $showingItemPicker)
+        }
+        .sheet(isPresented: $showingCustomTimeSheet) {
+            CustomTimeSheet(isPresented: $showingCustomTimeSheet, customTime: $customTime)
+        }
+        .alert("专注完成", isPresented: $showingCompletionAlert) {
+            Button("确定") {
+                saveRecord()
             }
-            .sheet(isPresented: $showingCustomTimeSheet) {
-                CustomTimeSheet(isPresented: $showingCustomTimeSheet, customTime: $customTime)
+        } message: {
+            Text("太棒了！你完成了一次专注。")
+        }
+        .alert("继续上次的专注？", isPresented: $showingResumeAlert) {
+            Button("继续") {
+                pomodoroTimer.startTimer(
+                    itemName: selectedItem?.name,
+                    itemIcon: selectedItem?.icon
+                )
             }
-            .alert("专注完成", isPresented: $showingCompletionAlert) {
-                Button("确定") {
-                    saveRecord()
-                }
-            } message: {
-                Text("太棒了！你完成了一次专注。")
+            Button("放弃", role: .destructive) {
+                pomodoroTimer.clearSavedSession()
             }
-            .alert("继续上次的专注？", isPresented: $showingResumeAlert) {
-                Button("继续") {
-                    pomodoroTimer.startTimer(
-                        itemName: selectedItem?.name,
-                        itemIcon: selectedItem?.icon
-                    )
+        } message: {
+            VStack(spacing: 8) {
+                if pomodoroTimer.isCountUp {
+                    Text("上次计时已进行 \(Int(pomodoroTimer.elapsedTime / 60)) 分钟")
+                } else {
+                    Text("上次倒计时还剩 \(Int(pomodoroTimer.timeRemaining / 60)) 分钟")
                 }
-                Button("放弃", role: .destructive) {
-                    pomodoroTimer.clearSavedSession()
-                }
-            } message: {
-                VStack(spacing: 8) {
-                    if pomodoroTimer.isCountUp {
-                        Text("上次计时已进行 \(Int(pomodoroTimer.elapsedTime / 60)) 分钟")
-                    } else {
-                        Text("上次倒计时还剩 \(Int(pomodoroTimer.timeRemaining / 60)) 分钟")
-                    }
-                    Text("是否继续？")
-                }
+                Text("是否继续？")
             }
-            .onAppear {
-                pomodoroTimer.onComplete = { showingCompletionAlert = true }
+        }
+        .onAppear {
+            pomodoroTimer.onComplete = { showingCompletionAlert = true }
+            
+            // 检查未完成的会话
+            if pomodoroTimer.checkForUnfinishedSession() {
+                showingResumeAlert = true
+            }
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .background {
+                pomodoroTimer.isBackgrounded = true
+                pomodoroTimer.updateLiveActivity(itemName: selectedItem?.name, itemIcon: selectedItem?.icon)
+            } else if newPhase == .active {
+                pomodoroTimer.isBackgrounded = false
+                pomodoroTimer.updateLiveActivity(itemName: selectedItem?.name, itemIcon: selectedItem?.icon)
                 
-                // 检查未完成的会话
-                if pomodoroTimer.checkForUnfinishedSession() {
-                    showingResumeAlert = true
-                }
-            }
-            .onChange(of: scenePhase) { oldPhase, newPhase in
-                if newPhase == .background {
-                    pomodoroTimer.isBackgrounded = true
-                    pomodoroTimer.updateLiveActivity(itemName: selectedItem?.name, itemIcon: selectedItem?.icon)
-                } else if newPhase == .active {
-                    pomodoroTimer.isBackgrounded = false
-                    pomodoroTimer.updateLiveActivity(itemName: selectedItem?.name, itemIcon: selectedItem?.icon)
-                    
-                    // 检查是否有未完成的会话
-                    if !showingResumeAlert && !showingCompletionAlert {
-                        if pomodoroTimer.checkForUnfinishedSession() {
-                            showingResumeAlert = true
-                        }
+                // 检查是否有未完成的会话
+                if !showingResumeAlert && !showingCompletionAlert {
+                    if pomodoroTimer.checkForUnfinishedSession() {
+                        showingResumeAlert = true
                     }
                 }
             }

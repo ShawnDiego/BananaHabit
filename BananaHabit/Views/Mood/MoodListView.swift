@@ -8,47 +8,13 @@ struct MoodListView: View {
     @State private var showingAddItem = false
     @State private var selectedItem: Item?
     
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    
     var body: some View {
-        Group {
-            if horizontalSizeClass == .compact {
-                NavigationStack {
-                    Group {
-                        if items.isEmpty {
-                            emptyStateView
-                        } else {
-                            List {
-                                ForEach(items) { item in
-                                    itemRow(item)
-                                }
-                                .onDelete(perform: deleteItems)
-                                .onMove { from, to in
-                                    moveItems(from: from, to: to)
-                                }
-                            }
-                        }
-                    }
-                    .navigationTitle("所有事项")
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            if !items.isEmpty {
-                                EditButton()
-                            }
-                        }
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button(action: { showingAddItem = true }) {
-                                Label("添加事项", systemImage: "plus")
-                            }
-                        }
-                    }
-                }
-                .sheet(isPresented: $showingAddItem) {
-                    AddItemView()
-                }
-            } else {
-                NavigationSplitView {
-                    List(selection: $selectedItem) {
+        NavigationStack {
+            Group {
+                if items.isEmpty {
+                    emptyStateView
+                } else {
+                    List {
                         ForEach(items) { item in
                             itemRow(item)
                         }
@@ -57,24 +23,24 @@ struct MoodListView: View {
                             moveItems(from: from, to: to)
                         }
                     }
-                    .navigationTitle("所有事项")
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            EditButton()
-                        }
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button(action: { showingAddItem = true }) {
-                                Label("添加事项", systemImage: "plus")
-                            }
-                        }
+                }
+            }
+            .navigationTitle("所有事项")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if !items.isEmpty {
+                        EditButton()
                     }
-                    .frame(minWidth: 200, maxWidth: 250)
-                } detail: {
-                    if let item = selectedItem ?? items.first {
-                        MoodDetailView(item: item)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: { showingAddItem = true }) {
+                        Label("添加事项", systemImage: "plus")
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showingAddItem) {
+            AddItemView()
         }
         .onAppear {
             if selectedItem == nil && !items.isEmpty {
@@ -204,4 +170,65 @@ struct MiniMoodChart: View {
         default: return .gray.opacity(0.8)
         }
     }
+}
+
+#Preview {
+    // 创建内存模型容器
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: Item.self, configurations: config)
+    
+    // 创建示例数据
+    let item1 = Item(name: "工作", icon: "briefcase.fill")
+    item1.sortOrder = 0
+    
+    let item2 = Item(name: "健身", icon: "figure.run")
+    item2.sortOrder = 1
+    
+    let item3 = Item(name: "学习", icon: "book.fill")
+    item3.sortOrder = 2
+    
+    let item4 = Item(name: "娱乐", icon: "gamecontroller.fill")
+    item4.sortOrder = 3
+    
+    // 添加心情记录
+    let calendar = Calendar.current
+    let today = Date()
+    
+    // 为工作添加心情
+    let dates1 = [0, -1, -2, -3, -4, -5, -6, -7, -8, -9]
+    let values1 = [4, 3, 5, 4, 3, 2, 4, 5, 3, 4]
+    
+    for (index, dayOffset) in dates1.enumerated() {
+        let date = calendar.date(byAdding: .day, value: dayOffset, to: today)!
+        let mood = Mood(date: date, value: values1[index], note: "工作日记 \(abs(dayOffset))", item: item1)
+        item1.moods.append(mood)
+    }
+    
+    // 为健身添加心情
+    let dates2 = [0, -2, -4, -6, -8]
+    let values2 = [5, 4, 5, 4, 5]
+    
+    for (index, dayOffset) in dates2.enumerated() {
+        let date = calendar.date(byAdding: .day, value: dayOffset, to: today)!
+        let mood = Mood(date: date, value: values2[index], note: "锻炼感受 \(abs(dayOffset))", item: item2)
+        item2.moods.append(mood)
+    }
+    
+    // 为学习添加心情
+    let dates3 = [-1, -3, -5, -7, -9]
+    let values3 = [3, 4, 2, 4, 3]
+    
+    for (index, dayOffset) in dates3.enumerated() {
+        let date = calendar.date(byAdding: .day, value: dayOffset, to: today)!
+        let mood = Mood(date: date, value: values3[index], note: "学习笔记 \(abs(dayOffset))", item: item3)
+        item3.moods.append(mood)
+    }
+    
+    container.mainContext.insert(item1)
+    container.mainContext.insert(item2)
+    container.mainContext.insert(item3)
+    container.mainContext.insert(item4) // 空列表项
+    
+    return MoodListView()
+        .modelContainer(container)
 } 
