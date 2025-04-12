@@ -110,28 +110,6 @@ struct StatsOverviewCard: View {
                     }
                 }
             }
-            
-            Divider()
-            
-            HStack(spacing: 20) {
-                if let worst = getWorstMood(item) {
-                    MoodExtremeView(
-                        title: "最低心情",
-                        date: worst.date,
-                        value: worst.value,
-                        color: .red
-                    )
-                }
-                
-                if let best = getBestMood(item) {
-                    MoodExtremeView(
-                        title: "最高心情",
-                        date: best.date,
-                        value: best.value,
-                        color: .blue
-                    )
-                }
-            }
         }
         .padding()
         .background(

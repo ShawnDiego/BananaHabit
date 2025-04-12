@@ -417,89 +417,100 @@ struct OverviewView: View {
     }
     
     private func moodTrendCard(item: Item) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("近期心情趋势")
-                .font(.headline)
-            
-            // 内联实现 WeekMoodChart
-            Chart {
-                let filteredData = weekData(for: [item])
+        NavigationLink(destination: MoodDetailView(item: item)) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("近期心情趋势")
+                        .font(.headline)
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14))
+                        .foregroundColor(.blue)
+                }
                 
-                // 首先绘制连线和区域
-                ForEach(Array(filteredData.enumerated()), id: \.1.date) { index, data in
-                    if data.value > 0 {
-                        // 绘制线段
-                        LineMark(
-                            x: .value("日期", data.date, unit: .day),
-                            y: .value("心情", data.value)
-                        )
-                        .foregroundStyle(chartMoodColor(data.value))
-                        .lineStyle(StrokeStyle(lineWidth: 2))
-                        
-                        // 绘制区域
-                        AreaMark(
-                            x: .value("日期", data.date, unit: .day),
-                            y: .value("心情", data.value)
-                        )
-                        .foregroundStyle(
-                            .linearGradient(
-                                colors: [
-                                    chartMoodColor(data.value).opacity(0.2),
-                                    .clear
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
+                // 内联实现 WeekMoodChart
+                Chart {
+                    let filteredData = weekData(for: [item])
+                    
+                    // 首先绘制连线和区域
+                    ForEach(Array(filteredData.enumerated()), id: \.1.date) { index, data in
+                        if data.value > 0 {
+                            // 绘制线段
+                            LineMark(
+                                x: .value("日期", data.date, unit: .day),
+                                y: .value("心情", data.value)
                             )
-                        )
-                    }
-                }
-                
-                // 然后绘制数据点
-                ForEach(Array(filteredData.enumerated()), id: \.1.date) { index, data in
-                    if data.value > 0 {
-                        // 有记录的点显示实心圆点
-                        PointMark(
-                            x: .value("日期", data.date, unit: .day),
-                            y: .value("心情", data.value)
-                        )
-                        .foregroundStyle(chartMoodColor(data.value))
-                        .symbol {
-                            Circle()
-                                .fill(chartMoodColor(data.value))
-                                .frame(width: 10, height: 10)
-                        }
-                    } else {
-                        // 无记录的点显示空心圆圈
-                        PointMark(
-                            x: .value("日期", data.date, unit: .day),
-                            y: .value("心情", 3) // 放在中间位置
-                        )
-                        .foregroundStyle(.clear)
-                        .symbol {
-                            Circle()
-                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                                .frame(width: 8, height: 8)
+                            .foregroundStyle(chartMoodColor(data.value))
+                            .lineStyle(StrokeStyle(lineWidth: 2))
+                            
+                            // 绘制区域
+                            AreaMark(
+                                x: .value("日期", data.date, unit: .day),
+                                y: .value("心情", data.value)
+                            )
+                            .foregroundStyle(
+                                .linearGradient(
+                                    colors: [
+                                        chartMoodColor(data.value).opacity(0.2),
+                                        .clear
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
                         }
                     }
-                }
-            }
-            .chartYScale(domain: 0...5)
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .day)) { value in
-                    if let date = value.as(Date.self) {
-                        AxisValueLabel(format: .dateTime.weekday(.narrow))
+                    
+                    // 然后绘制数据点
+                    ForEach(Array(filteredData.enumerated()), id: \.1.date) { index, data in
+                        if data.value > 0 {
+                            // 有记录的点显示实心圆点
+                            PointMark(
+                                x: .value("日期", data.date, unit: .day),
+                                y: .value("心情", data.value)
+                            )
+                            .foregroundStyle(chartMoodColor(data.value))
+                            .symbol {
+                                Circle()
+                                    .fill(chartMoodColor(data.value))
+                                    .frame(width: 10, height: 10)
+                            }
+                        } else {
+                            // 无记录的点显示空心圆圈
+                            PointMark(
+                                x: .value("日期", data.date, unit: .day),
+                                y: .value("心情", 3) // 放在中间位置
+                            )
+                            .foregroundStyle(.clear)
+                            .symbol {
+                                Circle()
+                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                    .frame(width: 8, height: 8)
+                            }
+                        }
                     }
                 }
+                .chartYScale(domain: 0...5)
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day)) { value in
+                        if let date = value.as(Date.self) {
+                            AxisValueLabel(format: .dateTime.weekday(.narrow))
+                        }
+                    }
+                }
+                .frame(height: 200)
+                .padding(.vertical, 8)
             }
-            .frame(height: 200)
-            .padding(.vertical, 8)
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: .black.opacity(0.1), radius: 10)
+            )
+            .foregroundColor(.primary) // 保持默认文本颜色，不显示为蓝色链接
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.1), radius: 10)
-        )
     }
     
     // 获取最近一周数据
