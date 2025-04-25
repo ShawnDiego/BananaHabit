@@ -32,7 +32,7 @@ struct UserProfileView: View {
                             Button {
                                 showingAvatarActions = true
                             } label: {
-                                AsyncImage(url: URL(fileURLWithPath: user.avatarUrl ?? "")) { image in
+                                AsyncImage(url: URL(string: user.avatarUrl != nil ? "file://\(user.avatarUrl!)?cache=\(UUID().uuidString)" : "")) { image in
                                     image.resizable()
                                         .scaledToFill()
                                 } placeholder: {

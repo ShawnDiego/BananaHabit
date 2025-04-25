@@ -395,7 +395,8 @@ struct OverviewView: View {
             } label: {
                 if userVM.isAuthenticated, let user = userVM.currentUser,
                    let avatarUrl = user.avatarUrl {
-                    AsyncImage(url: URL(fileURLWithPath: avatarUrl)) { image in
+                    // 添加随机查询参数强制刷新
+                    AsyncImage(url: URL(string: "file://\(avatarUrl)?cache=\(UUID().uuidString)")) { image in
                         image
                             .resizable()
                             .scaledToFill()

@@ -7,6 +7,8 @@ struct MoodListView: View {
     @Query(sort: \Item.sortOrder) private var items: [Item]
     @State private var showingAddItem = false
     @State private var selectedItem: Item?
+    @State private var showingDeleteAlert = false
+    @State private var indexSetToDelete: IndexSet?
     
     var body: some View {
         NavigationStack {
@@ -41,6 +43,16 @@ struct MoodListView: View {
         }
         .sheet(isPresented: $showingAddItem) {
             AddItemView()
+        }
+        .alert("确认删除", isPresented: $showingDeleteAlert) {
+            Button("取消", role: .cancel) {
+                indexSetToDelete = nil
+            }
+            Button("删除", role: .destructive) {
+                confirmDelete()
+            }
+        } message: {
+            Text("确定要删除所选事项吗？此操作将同时删除该事项的所有心情记录。")
         }
         .onAppear {
             if selectedItem == nil && !items.isEmpty {
@@ -88,8 +100,16 @@ struct MoodListView: View {
     }
     
     private func deleteItems(offsets: IndexSet) {
-        for index in offsets {
-            modelContext.delete(items[index])
+        indexSetToDelete = offsets
+        showingDeleteAlert = true
+    }
+    
+    private func confirmDelete() {
+        if let offsets = indexSetToDelete {
+            for index in offsets {
+                modelContext.delete(items[index])
+            }
+            indexSetToDelete = nil
         }
     }
     
