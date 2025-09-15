@@ -105,12 +105,12 @@ struct QuickMoodInputView: View {
                                     VStack(spacing: 8) {
                                         Image(systemName: value == selectedValue ? "circle.fill" : "circle")
                                             .font(.system(size: 32))
-                                            .foregroundStyle(moodColor(value))
+                                            .foregroundStyle(MoodUtils.moodColor(value))
                                             .symbolEffect(.bounce, value: selectedValue == value)
                                         
-                                        Text(moodText(value))
+                                        Text(MoodUtils.moodText(value))
                                             .font(.subheadline)
-                                            .foregroundStyle(value == selectedValue ? moodColor(value) : .gray)
+                                            .foregroundStyle(value == selectedValue ? MoodUtils.moodColor(value) : .gray)
                                     }
                                     .frame(width: 50)
                                 }
@@ -240,30 +240,10 @@ struct QuickMoodInputView: View {
         try? modelContext.save()
     }
     
-    private func moodText(_ value: Int) -> String {
-        switch value {
-        case 1: return "很差"
-        case 2: return "较差"
-        case 3: return "一般"
-        case 4: return "不错"
-        case 5: return "很好"
-        default: return ""
-        }
-    }
-    
-    private func moodColor(_ value: Int) -> Color {
-        switch value {
-        case 1: return .red.opacity(0.8)
-        case 2: return .orange.opacity(0.8)
-        case 3: return .yellow.opacity(0.8)
-        case 4: return .mint.opacity(0.8)
-        case 5: return .blue.opacity(0.8)
-        default: return .gray
-        }
-    }
+
 }
 
 #Preview {
     QuickMoodInputView()
         .modelContainer(for: Item.self, inMemory: true)
-} 
+}

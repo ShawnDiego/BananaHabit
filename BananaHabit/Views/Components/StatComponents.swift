@@ -111,7 +111,7 @@ struct StatsOverviewCard: View {
                 }
             }
         }
-        .padding()
+        .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.systemBackground))
@@ -201,4 +201,4 @@ struct StatsOverviewCard: View {
         let recentMoods = item.moods.filter { $0.date >= thirtyDaysAgo }
         return recentMoods.max { $0.value < $1.value || ($0.value == $1.value && $0.date < $1.date) }
     }
-} 
+}
