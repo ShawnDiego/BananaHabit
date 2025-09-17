@@ -96,7 +96,7 @@ struct MoodListView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemGroupedBackground))
+        .background(Color(red: 0.95, green: 0.95, blue: 0.97))
     }
     
     private func deleteItems(offsets: IndexSet) {
@@ -105,34 +105,52 @@ struct MoodListView: View {
     }
     
     private func confirmDelete() {
-        if let offsets = indexSetToDelete {
-            for index in offsets {
+        guard let indexSet = indexSetToDelete else { return }
+        
+        withAnimation {
+            for index in indexSet {
                 modelContext.delete(items[index])
             }
-            indexSetToDelete = nil
         }
+        indexSetToDelete = nil
     }
     
     private func itemRow(_ item: Item) -> some View {
-        NavigationLink {
-            MoodDetailView(item: item)
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(item.name)
+        NavigationLink(destination: MoodDetailView(item: item)) {
+            HStack {
+                Image(systemName: item.icon)
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                    .frame(width: 30)
                 
-                // 最近十条数据的迷你图表
-                MiniMoodChart(moods: getRecentMoods(item: item))
-                    .frame(height: 50)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.name)
+                        .font(.headline)
+                    
+                    let recentMoods = getRecentSevenDaysMoods(item: item)
+                    if recentMoods.isEmpty {
+                        Text("暂无近七天数据")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .frame(height: 30, alignment: .leading)
+                    } else {
+                        MiniMoodChart(moods: recentMoods)
+                            .frame(height: 30)
+                    }
+                }
+                
+                Spacer()
             }
-            .padding(.vertical, 4)
+            .frame(height: 60)
+            .contentShape(Rectangle())
         }
     }
     
-    private func getRecentMoods(item: Item) -> [Mood] {
-        return Array(item.moods
-            .sorted { $0.date > $1.date }
-            .prefix(10)
-            .reversed())
+    private func getRecentSevenDaysMoods(item: Item) -> [Mood] {
+        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        return item.moods
+            .filter { $0.date >= sevenDaysAgo }
+            .sorted { $0.date < $1.date }
     }
     
     private func moveItems(from source: IndexSet, to destination: Int) {
@@ -146,54 +164,56 @@ struct MoodListView: View {
     }
 }
 
-// 添加迷你图表组件
 struct MiniMoodChart: View {
     let moods: [Mood]
     
     var body: some View {
-        Chart {
-            ForEach(Array(moods.enumerated()), id: \.element.id) { index, mood in
-                // 添加渐变阴影区域
-                AreaMark(
-                    x: .value("序号", index),
-                    y: .value("心情", mood.value)
-                )
-                .foregroundStyle(
-                    Gradient(colors: [moodColor(mood.value).opacity(0.2), .clear])
-                )
-                
-                // 线条
-                LineMark(
-                    x: .value("序号", index),
-                    y: .value("心情", mood.value)
-                )
-                .foregroundStyle(moodColor(mood.value))
-                .symbol {
-                    Circle()
-                        .fill(moodColor(mood.value))
-                        .frame(width: 6, height: 6)
+        if moods.isEmpty {
+            Text("暂无近七天数据")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        } else {
+            Chart {
+                ForEach(Array(moods.enumerated()), id: \.offset) { index, mood in
+                    AreaMark(
+                        x: .value("序号", index),
+                        y: .value("心情", mood.value)
+                    )
+                    .foregroundStyle(
+                        Gradient(colors: [moodColor(mood.value).opacity(0.2), .clear])
+                    )
+                    
+                    LineMark(
+                        x: .value("序号", index),
+                        y: .value("心情", mood.value)
+                    )
+                    .foregroundStyle(moodColor(mood.value))
+                    .symbol {
+                        Circle()
+                            .fill(moodColor(mood.value))
+                            .frame(width: 6, height: 6)
+                    }
                 }
             }
+            .chartXAxis(.hidden)
+            .chartYScale(domain: 0...5)
+            .chartYAxis(.hidden)
         }
-        .chartXAxis(.hidden)
-        .chartYScale(domain: 0...5)
-        .chartYAxis(.hidden)
     }
     
     private func moodColor(_ value: Int) -> Color {
         switch value {
-        case 1: return .red.opacity(0.8)
-        case 2: return .orange.opacity(0.8)
-        case 3: return .yellow.opacity(0.8)
-        case 4: return .mint.opacity(0.8)
-        case 5: return .blue.opacity(0.8)
-        default: return .gray.opacity(0.8)
+        case 1: return .red
+        case 2: return .orange
+        case 3: return .yellow
+        case 4: return .green
+        case 5: return .blue
+        default: return .gray
         }
     }
 }
 
 #Preview {
-    // 创建内存模型容器
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try! ModelContainer(for: Item.self, configurations: config)
     
@@ -210,13 +230,13 @@ struct MiniMoodChart: View {
     let item4 = Item(name: "娱乐", icon: "gamecontroller.fill")
     item4.sortOrder = 3
     
-    // 添加心情记录
+    // 添加近7天的心情数据
     let calendar = Calendar.current
     let today = Date()
     
-    // 为工作添加心情
-    let dates1 = [0, -1, -2, -3, -4, -5, -6, -7, -8, -9]
-    let values1 = [4, 3, 5, 4, 3, 2, 4, 5, 3, 4]
+    // 为item1添加近7天数据
+    let dates1 = [0, -1, -2, -3, -4, -5, -6]
+    let values1 = [4, 3, 5, 4, 3, 2, 4]
     
     for (index, dayOffset) in dates1.enumerated() {
         let date = calendar.date(byAdding: .day, value: dayOffset, to: today)!
@@ -224,9 +244,9 @@ struct MiniMoodChart: View {
         item1.moods.append(mood)
     }
     
-    // 为健身添加心情
-    let dates2 = [0, -2, -4, -6, -8]
-    let values2 = [5, 4, 5, 4, 5]
+    // 为item2添加部分数据
+    let dates2 = [0, -2, -4, -6]
+    let values2 = [5, 4, 5, 4]
     
     for (index, dayOffset) in dates2.enumerated() {
         let date = calendar.date(byAdding: .day, value: dayOffset, to: today)!
@@ -234,9 +254,9 @@ struct MiniMoodChart: View {
         item2.moods.append(mood)
     }
     
-    // 为学习添加心情
-    let dates3 = [-1, -3, -5, -7, -9]
-    let values3 = [3, 4, 2, 4, 3]
+    // 为item3添加少量数据
+    let dates3 = [-1, -3, -5]
+    let values3 = [3, 4, 2]
     
     for (index, dayOffset) in dates3.enumerated() {
         let date = calendar.date(byAdding: .day, value: dayOffset, to: today)!
@@ -251,4 +271,4 @@ struct MiniMoodChart: View {
     
     return MoodListView()
         .modelContainer(container)
-} 
+}
