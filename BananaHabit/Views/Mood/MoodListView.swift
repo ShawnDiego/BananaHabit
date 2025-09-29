@@ -118,9 +118,7 @@ struct MoodListView: View {
     private func itemRow(_ item: Item) -> some View {
         NavigationLink(destination: MoodDetailView(item: item)) {
             HStack {
-                Image(systemName: item.icon)
-                    .font(.title2)
-                    .foregroundColor(.blue)
+                ItemIconView(icon: item.icon, size: 20, color: .blue)
                     .frame(width: 30)
                 
                 VStack(alignment: .leading, spacing: 4) {

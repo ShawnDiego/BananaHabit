@@ -732,7 +732,7 @@ struct TimerDisplayView: View {
                     
                     if let item = selectedItem {
                         HStack {
-                            Image(systemName: item.icon)
+                            ItemIconView(icon: item.icon, size: 16, color: .blue)
                             Text(item.name)
                         }
                         .font(.headline)
@@ -845,8 +845,7 @@ struct PomodoroRecordRow: View {
                 // 关联事项
                 if let item = record.relatedItem {
                     HStack {
-                        Image(systemName: item.icon)
-                            .foregroundColor(.blue)
+                        ItemIconView(icon: item.icon, size: 14, color: .blue)
                         Text(item.name)
                             .foregroundColor(.primary)
                     }
@@ -924,9 +923,7 @@ private struct ItemPickerSheet: View {
                                 isPresented = false
                             }) {
                                 HStack {
-                                    Image(systemName: item.icon)
-                                        .foregroundColor(.accentColor)
-                                        .frame(width: 24, height: 24)
+                                    ItemIconView(icon: item.icon, size: 24, color: .accentColor)
                                     Text(item.name)
                                     Spacer()
                                     if selectedItem?.id == item.id {
@@ -952,6 +949,6 @@ private struct ItemPickerSheet: View {
         }
         .presentationDetents([.medium])
     }
-} 
+}
 
 

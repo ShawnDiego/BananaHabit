@@ -320,9 +320,7 @@ private struct DiaryRowView: View {
                 // 关联信息
                 if let item = diary.relatedItem {
                     HStack(spacing: 8) {
-                        Image(systemName: item.icon)
-                            .foregroundColor(.blue)
-                            .font(.caption)
+                        ItemIconView(icon: item.icon, size: 12, color: .blue)
                         
                         Text(item.name)
                             .font(.caption)
@@ -364,4 +362,4 @@ private struct DiaryRowView: View {
         }
         return content.isEmpty ? nil : content
     }
-} 
+}

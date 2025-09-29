@@ -975,9 +975,7 @@ private struct ItemIconView2: View {
     let item: Item
     
     var body: some View {
-        Image(systemName: item.icon)
-            .foregroundColor(.accentColor)
-            .frame(width: 24, height: 24)
+        ItemIconView(icon: item.icon, size: 24, color: .accentColor)
     }
 }
 
