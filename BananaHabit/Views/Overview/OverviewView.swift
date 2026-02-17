@@ -65,13 +65,8 @@ struct OverviewView: View {
         .navigationViewStyle(StackNavigationViewStyle())
         .background(Color(.systemBackground))
         .sheet(isPresented: $showingUserProfile) {
-            if !userVM.isAuthenticated {
-                SignInView()
-                    .environmentObject(userVM)
-            } else {
-                UserProfileView()
-                    .environmentObject(userVM)
-            }
+            UserProfileView()
+                .environmentObject(userVM)
         }
         .sheet(isPresented: $showingMoodInput) {
             if let item = selectedItem {
