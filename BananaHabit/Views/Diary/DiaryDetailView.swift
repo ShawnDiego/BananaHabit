@@ -164,7 +164,21 @@ struct DiaryDetailView: View {
             Text("确定要删除这篇日记吗？此操作无法撤销。")
         }
         .sheet(isPresented: $showingDatePicker) {
-            DatePickerSheet(selectedDate: $selectedDate, isPresented: $showingDatePicker)
+            VStack {
+//                if let item = selectedItem {
+//                    MoodCalendarView(selectedDate: $selectedDate, item: item)
+//                        .padding()
+//                    
+//                    Button("完成") {
+//                        showingDatePicker = false
+//                    }
+//                    .buttonStyle(.borderedProminent)
+//                    .padding(.bottom)
+//                } else {
+                    DatePickerSheet(selectedDate: $selectedDate, isPresented: $showingDatePicker)
+//                }
+            }
+            .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showingItemPicker) {
             ItemPickerSheet(selectedItem: $selectedItem, items: items, isPresented: $showingItemPicker)
@@ -249,10 +263,9 @@ private struct DiaryFormView: View {
                         .font(.title3)
                         .bold()
                         .foregroundColor(.primary)
-                        .padding(.horizontal, 8)
-                        .padding(.top, 10)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 16)
                     
-                    // 添加分隔线
                     Rectangle()
                         .fill(Color.gray.opacity(0.2))
                         .frame(height: 1)
@@ -261,7 +274,8 @@ private struct DiaryFormView: View {
                     
                     RichTextEditor(content: $diaryContent, selectedRange: $selectedRange)
                         .frame(minHeight: UIScreen.main.bounds.height * 0.4)
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 12)
@@ -486,37 +500,44 @@ private struct DiaryFormView: View {
         let base64String = imageData.base64EncodedString()
         let imageItem = DiaryContent.ContentItem(type: .image, content: base64String)
         
-        if let range = selectedRange {
-            // 在光标位置插入图片
-            let index = diaryContent.items.firstIndex { item in
-                if item.type == .text {
-                    let length = item.content.count
-                    return range.location <= length
-                }
-                return false
-            } ?? diaryContent.items.endIndex
+        // 获取当前所有文本内容
+        let allText = diaryContent.items.filter { $0.type == .text }.map { $0.content }.joined()
+        
+        if let range = selectedRange, range.location <= allText.count {
+            // 在光标位置分割文本并插入图片
+            let beforeCursor = String(allText.prefix(range.location))
+            let afterCursor = String(allText.dropFirst(range.location))
             
-            if index < diaryContent.items.endIndex {
-                let item = diaryContent.items[index]
-                if item.type == .text {
-                    let content = item.content
-                    let prefix = String(content.prefix(range.location))
-                    let suffix = String(content.dropFirst(range.location))
-                    
-                    diaryContent.items.remove(at: index)
-                    if !prefix.isEmpty {
-                        diaryContent.items.insert(DiaryContent.ContentItem(type: .text, content: prefix), at: index)
-                    }
-                    diaryContent.items.insert(imageItem, at: index + (prefix.isEmpty ? 0 : 1))
-                    if !suffix.isEmpty {
-                        diaryContent.items.insert(DiaryContent.ContentItem(type: .text, content: suffix), at: index + (prefix.isEmpty ? 1 : 2))
-                    }
-                }
-            } else {
-                diaryContent.items.append(imageItem)
+            // 重新构建内容数组
+            var newItems: [DiaryContent.ContentItem] = []
+            
+            // 添加光标前的文本（如果不为空）
+            if !beforeCursor.isEmpty {
+                newItems.append(DiaryContent.ContentItem(type: .text, content: beforeCursor))
             }
+            
+            // 添加图片
+            newItems.append(imageItem)
+            
+            // 添加光标后的文本（如果不为空）
+            if !afterCursor.isEmpty {
+                newItems.append(DiaryContent.ContentItem(type: .text, content: afterCursor))
+            }
+            
+            // 保留所有现有的图片
+            let existingImages = diaryContent.items.filter { $0.type == .image }
+            
+            // 如果没有文本内容，直接添加图片
+            if newItems.isEmpty {
+                newItems = existingImages + [imageItem]
+            } else {
+                // 将现有图片插入到适当位置（这里简化为添加到末尾）
+                newItems.append(contentsOf: existingImages)
+            }
+            
+            diaryContent.items = newItems
         } else {
-            // 如果没有选中位置，添加到末尾
+            // 如果没有选中位置或位置无效，添加到末尾
             diaryContent.items.append(imageItem)
         }
     }
@@ -536,7 +557,7 @@ fileprivate struct RichTextEditor: UIViewRepresentable {
         textView.font = .preferredFont(forTextStyle: .body).withSize(18)
         textView.isScrollEnabled = true
         textView.backgroundColor = .clear
-        textView.textContainerInset = UIEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
+        textView.textContainerInset = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
         textView.textContainer.lineFragmentPadding = 0
         
         // 添加工具栏
@@ -590,23 +611,41 @@ fileprivate struct RichTextEditor: UIViewRepresentable {
                 case .image:
                     if let imageData = Data(base64Encoded: item.content),
                        let image = UIImage(data: imageData) {
-                        let maxWidth = textView.frame.width - 20
+                        // 计算合适的图片大小
+                        let maxWidth = textView.frame.width > 0 ? textView.frame.width - 32 : UIScreen.main.bounds.width - 72
                         let aspectRatio = image.size.width / image.size.height
-                        let targetSize = CGSize(width: min(maxWidth, image.size.width),
-                                              height: min(maxWidth / aspectRatio, image.size.height))
+                        
+                        // 设置最大宽度为容器宽度的90%，最小宽度为200
+                        let targetWidth = min(maxWidth * 0.9, max(200, image.size.width))
+                        let targetHeight = targetWidth / aspectRatio
+                        
+                        let targetSize = CGSize(width: targetWidth, height: targetHeight)
                         
                         let attachment = NSTextAttachment()
                         attachment.image = image
                         attachment.bounds = CGRect(origin: .zero, size: targetSize)
-                        attributedString.append(NSAttributedString(attachment: attachment))
+                        
+                        // 添加换行符确保图片独占一行
+                        if !attributedString.string.isEmpty && !attributedString.string.hasSuffix("\n") {
+                            attributedString.append(NSAttributedString(string: "\n"))
+                        }
+                        
+                        let imageAttributedString = NSAttributedString(attachment: attachment)
+                        attributedString.append(imageAttributedString)
                         attributedString.append(NSAttributedString(string: "\n"))
+                        
+                        // 为图片添加可点击的属性，用于调整大小
+                        let imageRange = NSRange(location: attributedString.length - imageAttributedString.length - 1, length: imageAttributedString.length)
+                        attributedString.addAttribute(.link, value: "image://\(item.id)", range: imageRange)
                     }
                 }
             }
             
             let selectedRange = textView.selectedRange
             textView.attributedText = attributedString
-            if selectedRange.location != NSNotFound {
+            
+            // 恢复光标位置，但要确保位置有效
+            if selectedRange.location != NSNotFound && selectedRange.location <= attributedString.length {
                 textView.selectedRange = selectedRange
             }
         }
@@ -643,10 +682,14 @@ fileprivate struct RichTextEditor: UIViewRepresentable {
             
             let text = textView.attributedText.string
             
-            // 更新或创建文本内容
-            let textItems = parent.content.items.filter { $0.type == .image }
+            // 保留所有图片内容
+            let imageItems = parent.content.items.filter { $0.type == .image }
+            
+            // 创建新的文本内容项
             let newTextItem = DiaryContent.ContentItem(type: .text, content: text)
-            parent.content.items = [newTextItem] + textItems
+            
+            // 重新构建内容数组：文本在前，图片在后
+            parent.content.items = [newTextItem] + imageItems
             
             isUpdating = false
         }
@@ -659,6 +702,83 @@ fileprivate struct RichTextEditor: UIViewRepresentable {
             DispatchQueue.main.async {
                 self.parent.selectedRange = newRange
             }
+        }
+        
+        func textView(_ textView: UITextView, shouldInteractWith URL: URL, in characterRange: NSRange, interaction: UITextItemInteraction) -> Bool {
+            if URL.scheme == "image" {
+                // 处理图片点击事件
+                let imageId = URL.host ?? ""
+                showImageResizeOptions(for: imageId, in: textView, at: characterRange)
+                return false // 阻止默认行为
+            }
+            return true
+        }
+        
+        private func showImageResizeOptions(for imageId: String, in textView: UITextView, at range: NSRange) {
+            let alert = UIAlertController(title: "调整图片大小", message: nil, preferredStyle: .actionSheet)
+            
+            alert.addAction(UIAlertAction(title: "小", style: .default) { _ in
+                self.resizeImage(imageId: imageId, size: .small, in: textView, at: range)
+            })
+            
+            alert.addAction(UIAlertAction(title: "中", style: .default) { _ in
+                self.resizeImage(imageId: imageId, size: .medium, in: textView, at: range)
+            })
+            
+            alert.addAction(UIAlertAction(title: "大", style: .default) { _ in
+                self.resizeImage(imageId: imageId, size: .large, in: textView, at: range)
+            })
+            
+            alert.addAction(UIAlertAction(title: "取消", style: .cancel))
+            
+            // 获取当前的 UIViewController 来展示 alert
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let window = windowScene.windows.first,
+               let rootViewController = window.rootViewController {
+                var presentingViewController = rootViewController
+                while let presented = presentingViewController.presentedViewController {
+                    presentingViewController = presented
+                }
+                presentingViewController.present(alert, animated: true)
+            }
+        }
+        
+        private enum ImageSize {
+            case small, medium, large
+            
+            var multiplier: CGFloat {
+                switch self {
+                case .small: return 0.5
+                case .medium: return 0.75
+                case .large: return 1.0
+                }
+            }
+        }
+        
+        private func resizeImage(imageId: String, size: ImageSize, in textView: UITextView, at range: NSRange) {
+            guard let item = parent.content.items.first(where: { $0.id.uuidString == imageId && $0.type == .image }),
+                  let imageData = Data(base64Encoded: item.content),
+                  let image = UIImage(data: imageData) else { return }
+            
+            // 计算新的图片大小
+            let maxWidth = textView.frame.width > 0 ? textView.frame.width - 32 : UIScreen.main.bounds.width - 72
+            let aspectRatio = image.size.width / image.size.height
+            let baseWidth = min(maxWidth * 0.9, max(200, image.size.width))
+            let targetWidth = baseWidth * size.multiplier
+            let targetHeight = targetWidth / aspectRatio
+            let targetSize = CGSize(width: targetWidth, height: targetHeight)
+            
+            // 更新图片附件的大小
+            let mutableAttributedString = NSMutableAttributedString(attributedString: textView.attributedText)
+            
+            // 查找并更新图片附件
+            mutableAttributedString.enumerateAttribute(.attachment, in: range) { value, attributeRange, _ in
+                if let attachment = value as? NSTextAttachment {
+                    attachment.bounds = CGRect(origin: .zero, size: targetSize)
+                }
+            }
+            
+            textView.attributedText = mutableAttributedString
         }
     }
 }
@@ -855,9 +975,7 @@ private struct ItemIconView2: View {
     let item: Item
     
     var body: some View {
-        Image(systemName: item.icon)
-            .foregroundColor(.accentColor)
-            .frame(width: 24, height: 24)
+        ItemIconView(icon: item.icon, size: 24, color: .accentColor)
     }
 }
 
@@ -985,4 +1103,4 @@ struct ImageEditorView: View {
 //        }
 //        .padding()
 //    }
-//} 
+//}

@@ -81,16 +81,27 @@ class UserViewModel: ObservableObject {
         // 创建头像目录（如果不存在）
         try? FileManager.default.createDirectory(at: avatarsDirectory, withIntermediateDirectories: true)
         
-        // 生成唯一文件名
-        let fileName = "\(user.id)_avatar.jpg"
+        // 生成唯一文件名 - 添加时间戳确保唯一性
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let fileName = "\(user.id)_avatar_\(timestamp).jpg"
         let fileURL = avatarsDirectory.appendingPathComponent(fileName)
+        
+        // 删除用户之前的头像文件
+        if let oldAvatarPath = user.avatarUrl {
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: oldAvatarPath))
+        }
         
         // 压缩图片并保存
         if let imageData = image.jpegData(compressionQuality: 0.7) {
             try? imageData.write(to: fileURL)
             user.avatarUrl = fileURL.path
-            currentUser = user
-            saveUserState()
+            
+            // 确保在主线程上更新UI状态
+            DispatchQueue.main.async {
+                self.objectWillChange.send() // 明确地发送变更通知
+                self.currentUser = user
+                self.saveUserState()
+            }
         }
     }
     
@@ -101,9 +112,13 @@ class UserViewModel: ObservableObject {
         // 删除头像文件
         try? FileManager.default.removeItem(at: URL(fileURLWithPath: avatarPath))
         
-        user.avatarUrl = nil
-        currentUser = user
-        saveUserState()
+        // 确保在主线程上更新UI状态
+        DispatchQueue.main.async {
+            self.objectWillChange.send() // 明确地发送变更通知
+            user.avatarUrl = nil
+            self.currentUser = user
+            self.saveUserState()
+        }
     }
     
     private func getDocumentsDirectory() -> URL {

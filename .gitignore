@@ -1,0 +1,5 @@
+build
+DerivedData
+macos_push_server/.env
+macos_push_server/devices.json
+macos_push_server/__pycache__

@@ -27,7 +27,7 @@ struct MoodInputView: View {
                         VStack(spacing: 4) {
                             Image(systemName: selectedValue == value ? "circle.fill" : "circle")
                                 .foregroundColor(moodColor(value))
-                                .font(.system(size: 24))
+                                .font(.system(size: 32))
                             Text("\(value)分")
                                 .font(.caption)
                                 .foregroundColor(selectedValue == value ? moodColor(value) : .gray)

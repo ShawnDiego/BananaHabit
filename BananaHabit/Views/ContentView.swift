@@ -14,6 +14,7 @@ extension EnvironmentValues {
 
 struct ContentView: View {
     @State private var selectedTab = 0
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -23,7 +24,7 @@ struct ContentView: View {
                 }
                 .tag(0)
             
-            ItemListView()
+            MoodListView()
                 .tabItem {
                     Label("事项", systemImage: "list.bullet")
                 }
@@ -42,5 +43,6 @@ struct ContentView: View {
                 .tag(3)
         }
         .environment(\.selectedTab, $selectedTab)
+        .navigationViewStyle(StackNavigationViewStyle())
     }
 } 

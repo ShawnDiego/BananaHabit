@@ -2,6 +2,8 @@ import SwiftUI
 import SwiftData
 import CoreData
 import BackgroundTasks
+import UserNotifications
+import UIKit
 
 @main
 struct BananaHabitApp: App {
@@ -9,6 +11,7 @@ struct BananaHabitApp: App {
     @StateObject private var userViewModel = UserViewModel()
     @StateObject private var authManager = AuthenticationManager()
     @StateObject private var pomodoroTimer = PomodoroTimer()
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     
     init() {
@@ -54,6 +57,51 @@ struct BananaHabitApp: App {
                 }
             }
         }
+    }
+}
+
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+    
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        NotificationManager.shared.updateRemoteDeviceToken(deviceToken)
+    }
+    
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationManager.shared.handleRemoteRegistrationFailure(error)
+    }
+    
+    func application(
+        _ application: UIApplication,
+        didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+        fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
+    ) {
+        NotificationManager.shared.handleIncomingRemoteNotification(userInfo)
+        completionHandler(.newData)
+    }
+    
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        NotificationManager.shared.handleIncomingRemoteNotification(notification.request.content.userInfo)
+        completionHandler([.banner, .list, .sound, .badge])
+    }
+    
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        NotificationManager.shared.handleIncomingRemoteNotification(response.notification.request.content.userInfo)
+        completionHandler()
     }
 }
 

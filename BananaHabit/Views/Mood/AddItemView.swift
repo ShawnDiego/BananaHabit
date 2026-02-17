@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 
+// 这里应该包含Item模型，如果在项目中是另外导入的，请根据实际情况调整
+
 struct AddItemView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -9,6 +11,15 @@ struct AddItemView: View {
     @State private var selectedIcon = "😊"
     @State private var showingIconPicker = false
     @State private var isShowingEmoji = true  // 控制显示 emoji 还是 SF Symbols
+    
+    // 添加跟踪当前选中的图标类型
+    @State private var selectedIconType: IconType = .emoji
+    
+    // 定义图标类型枚举
+    enum IconType {
+        case emoji
+        case sfSymbol
+    }
     
     // 预设的表情符号列表
     let emojiCategories = [
@@ -37,7 +48,14 @@ struct AddItemView: View {
                         Text("图标")
                         Spacer()
                         Button(action: { showingIconPicker = true }) {
-                            ItemIconView(icon: selectedIcon, size: 30)
+                            if selectedIconType == .emoji {
+                                Text(selectedIcon)
+                                    .font(.system(size: 30))
+                            } else {
+                                Image(systemName: selectedIcon)
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.blue)
+                            }
                         }
                     }
                     
@@ -63,28 +81,49 @@ struct AddItemView: View {
                 NavigationView {
                     VStack(spacing: 0) {
                         // 切换按钮
-                        Picker("图标类型", selection: $isShowingEmoji) {
-                            Text("表情符号").tag(true)
-                            Text("系统图标").tag(false)
+                        Picker("图标类型", selection: $selectedIconType) {
+                            Text("表情符号").tag(IconType.emoji)
+                            Text("系统图标").tag(IconType.sfSymbol)
                         }
                         .pickerStyle(.segmented)
                         .padding()
+                        .onChange(of: selectedIconType) { oldValue, newValue in
+                            if newValue == .emoji && oldValue == .sfSymbol {
+                                // 如果从系统图标切换到表情符号，设置默认表情
+                                selectedIcon = "😊"
+                            } else if newValue == .sfSymbol && oldValue == .emoji {
+                                // 如果从表情符号切换到系统图标，设置默认系统图标
+                                selectedIcon = "star.fill"
+                            }
+                        }
                         
-                        if isShowingEmoji {
+                        if selectedIconType == .emoji {
                             // Emoji 列表
-                            List {
+                            ScrollView {
                                 ForEach(emojiCategories, id: \.0) { category in
-                                    Section(category.0) {
+                                    VStack(alignment: .leading) {
+                                        Text(category.0)
+                                            .font(.headline)
+                                        // 对每一组 Emoji 使用单独的 LazyVGrid
                                         LazyVGrid(columns: [
                                             GridItem(.adaptive(minimum: 45))
                                         ], spacing: 10) {
                                             ForEach(category.1, id: \.self) { emoji in
                                                 Button(action: {
+                                                    // 仅更新当前选中的图标
                                                     selectedIcon = emoji
+                                                    selectedIconType = .emoji
                                                     showingIconPicker = false
                                                 }) {
                                                     Text(emoji)
                                                         .font(.system(size: 30))
+                                                        .padding(8)
+                                                        .background(
+                                                            Circle()
+                                                                .fill(selectedIcon == emoji ?
+                                                                      Color.blue.opacity(0.2) : Color.clear)
+                                                        )
+                                                        .animation(.easeInOut, value: selectedIcon)
                                                 }
                                             }
                                         }
@@ -92,9 +131,10 @@ struct AddItemView: View {
                                     }
                                 }
                             }
+                            .padding()
                         } else {
                             // SF Symbols 列表
-                            List {
+                            ScrollView {
                                 ForEach(sfSymbolCategories, id: \.0) { category in
                                     Section(category.0) {
                                         LazyVGrid(columns: [
@@ -102,13 +142,22 @@ struct AddItemView: View {
                                         ], spacing: 10) {
                                             ForEach(category.1, id: \.self) { symbol in
                                                 Button(action: {
-                                                    selectedIcon = symbol
-                                                    showingIconPicker = false
+                                                    withAnimation {
+                                                        selectedIcon = symbol
+                                                        selectedIconType = .sfSymbol
+                                                        showingIconPicker = false
+                                                    }
                                                 }) {
                                                     Image(systemName: symbol)
                                                         .font(.system(size: 24))
                                                         .foregroundColor(.blue)
                                                         .frame(width: 40, height: 40)
+                                                        .background(
+                                                            Circle()
+                                                                .fill(selectedIcon == symbol ? 
+                                                                    Color.blue.opacity(0.2) : 
+                                                                    Color.clear)
+                                                        )
                                                 }
                                             }
                                         }
@@ -116,6 +165,7 @@ struct AddItemView: View {
                                     }
                                 }
                             }
+                            .padding()
                         }
                     }
                     .navigationTitle("选择图标")
@@ -131,6 +181,22 @@ struct AddItemView: View {
                 .presentationDetents([.medium, .large])
             }
         }
+        .onAppear {
+            // 初始化时检查当前图标类型
+            if let firstScalar = selectedIcon.unicodeScalars.first, firstScalar.properties.isEmoji {
+                selectedIconType = .emoji
+            } else {
+                selectedIconType = .sfSymbol
+            }
+        }
+    }
+    
+    // 检查是否是表情符号
+    private func isEmojiIcon(_ icon: String) -> Bool {
+        if let firstScalar = icon.unicodeScalars.first {
+            return firstScalar.properties.isEmoji
+        }
+        return false
     }
     
     private func saveItem() {

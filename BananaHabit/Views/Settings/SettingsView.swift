@@ -49,6 +49,8 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+//                NavigationLink(destination: ContentView2()) {}
                 
                 // 其他设置选项可以在这里添加
                 Section(header: Text("关于")) {

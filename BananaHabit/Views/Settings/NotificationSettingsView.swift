@@ -4,8 +4,8 @@ struct NotificationSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var notificationManager = NotificationManager.shared
     @State private var selectedTime = Date()
-    @State private var isTimePickerShown = false
     @State private var hasNotification = false
+    @State private var pushServerURL = ""
     
     var body: some View {
         NavigationView {
@@ -33,6 +33,40 @@ struct NotificationSettingsView: View {
                 } footer: {
                     Text("开启后，我们会在设定的时间提醒你记录心情")
                 }
+                
+                Section {
+                    TextField("服务器地址", text: $pushServerURL)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled(true)
+                    
+                    Button("保存服务器地址") {
+                        savePushServerURL()
+                    }
+                    
+                    Button("重新注册远程推送") {
+                        registerRemotePush()
+                    }
+                    
+                    Text(notificationManager.remoteRegistrationMessage)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if let token = notificationManager.apnsDeviceToken, !token.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("APNs Device Token")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(token)
+                                .font(.caption2)
+                                .textSelection(.enabled)
+                        }
+                    }
+                } header: {
+                    Text("远程推送")
+                } footer: {
+                    Text("填写运行在 macOS 的通知服务器地址，例如：http://192.168.1.20:8787")
+                }
             }
             .navigationTitle("提醒设置")
             .navigationBarTitleDisplayMode(.inline)
@@ -47,7 +81,22 @@ struct NotificationSettingsView: View {
                 notificationManager.isNotificationScheduled { scheduled in
                     hasNotification = scheduled
                 }
+                pushServerURL = notificationManager.pushServerBaseURL
+                notificationManager.refreshAuthorizationStatus()
             }
+        }
+    }
+    
+    private func savePushServerURL() {
+        notificationManager.updatePushServerBaseURL(pushServerURL)
+    }
+    
+    private func registerRemotePush() {
+        savePushServerURL()
+        if notificationManager.isNotificationsEnabled {
+            notificationManager.registerForRemoteNotifications()
+        } else {
+            requestNotificationPermission()
         }
     }
     
